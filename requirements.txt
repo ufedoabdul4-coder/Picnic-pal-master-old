@@ -1,0 +1,6 @@
+flask
+gunicorn
+requests
+redis
+python-dotenv
+flask-limiter

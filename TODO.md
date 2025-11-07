@@ -1,0 +1,2 @@
+- [x] Modify android/app/src/main/res/values/styles.xml to remove the static splash background
+- [ ] Modify web/index.html to remove the splash image and related styles/scripts
