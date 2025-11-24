@@ -5,7 +5,7 @@
             "name": "Picnic Pal (with API Key)",
             "request": "launch",
             "type": "dart",
-            "deviceId": "chrome",
+            "deviceId": "",
             "args": [
                 // IMPORTANT: Paste your new API key from Google AI Studio here, without any < > brackets.
                 "--dart-define=GEMINI_API_KEY=AIzaSyCKojmjGADUOL9UO-tsGQh1OK4irRpGI60"

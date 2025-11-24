@@ -6,7 +6,9 @@ import 'package:intl/intl.dart';
 import 'main.dart'; // Import main to access the global key
 import 'event_provider.dart'; // To get event data
 import 'saved_venue_provider.dart'; // To get saved venue data
+import 'login_screen.dart'; // Import the login screen for logout navigation
 import 'settings_screen.dart'; // Import the new settings screen
+import 'edit_profile_screen.dart'; // Import the new edit profile screen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,12 +19,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
+  String _userName = "Loading...";
+  String _userEmail = "Loading...";
   String _joinDateString = "Loading...";
 
   @override
   void initState() {
     super.initState();
     _loadProfileImage();
+    _loadUserData();
     _loadJoinDate();
     // Add listeners to update the UI when data changes
     eventProvider.addListener(_onDataChanged);
@@ -42,6 +47,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (imagePath != null && mounted) {
       setState(() {
         _profileImage = File(imagePath);
+      });
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _userName = prefs.getString('user_name') ?? 'Jamal-din';
+        _userEmail = prefs.getString('user_email') ?? 'samuel@example.com';
       });
     }
   }
@@ -173,13 +188,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 15),
           Text(
-           "Jamal-din",
+           _userName,
             style: TextStyle( // This will now adapt via theme
                 color: theme.colorScheme.onSurface, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 5),
           Text(
-            "samuel@example.com",
+            _userEmail,
             style: TextStyle(color: theme.colorScheme.primary, fontSize: 16),
           ),
           const SizedBox(height: 5),
@@ -303,6 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMenuSection(BuildContext context) {
     final theme = Theme.of(context);
     final menuItems = [
+      {"icon": Icons.edit, "title": "Edit Profile"},
       {"icon": Icons.calendar_today, "title": "My Events"},
       {"icon": Icons.favorite, "title": "Saved Venues"},
       {"icon": Icons.help, "title": "Help & Support"},
@@ -329,6 +345,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () {
                 if (item["title"] == "My Events") {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const EventsPage()));
+                }
+                if (item["title"] == "Edit Profile") {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()))
+                      .then((value) {
+                    // Reload data if the page was popped with an update signal
+                    if (value == true) _loadUserData();
+                  });
+                }
+                if (isLogout) {
+                  // Navigate back to the login screen and remove all previous routes
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (Route<dynamic> route) => false,
+                  );
                 }
               },
             ),

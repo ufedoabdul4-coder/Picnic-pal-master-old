@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login_screen.dart'; // Import the login screen for logout navigation
 
 class VendorDashboardScreen extends StatefulWidget {
   const VendorDashboardScreen({super.key});
@@ -199,7 +200,35 @@ class VendorProfileTab extends StatelessWidget {
         title: Text('Profile', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
-      body: const Center(child: Text('Your vendor profile will appear here.')),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            child: Icon(Icons.storefront, size: 50, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(height: 12),
+          Center(child: Text("Vendor's Business Name", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface))),
+          const SizedBox(height: 30),
+          ListTile(
+            leading: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.onSurface),
+            title: Text('Edit Profile', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+            onTap: () { /* Placeholder for edit profile navigation */ },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
+            onTap: () {
+              // Navigate back to the login screen and remove all previous routes
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (Route<dynamic> route) => false,
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
