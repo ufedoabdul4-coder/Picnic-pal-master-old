@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart'; // To navigate to MainScreen
+import 'forgot_password_screen.dart'; // Import the new forgot password screen
+import 'signup_screen.dart'; // Import the new sign-up screen
 import 'vendor_login_screen.dart'; // Import the new vendor login screen
 
 class LoginScreen extends StatefulWidget {
@@ -78,6 +80,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   // Login Button
                   _buildLoginButton(),
                   const SizedBox(height: 20),
+
+                  // Forgot Password
+                  _buildForgotPasswordText(),
 
                   // Sign Up Text
                   _buildSignUpText(),
@@ -218,7 +223,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Widget _buildSignUpText() {
     return TextButton(
-      onPressed: () { /* Placeholder for sign-up navigation */ },
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SignUpScreen()),
+        );
+      },
       child: Text("Don't have an account? Sign Up", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
     );
   }
@@ -231,6 +240,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         );
       },
       child: Text("Are you a vendor? Login here", style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+    );
+  }
+
+  Widget _buildForgotPasswordText() {
+    return Container(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
+        child: Text("Forgot Password?", style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
+      ),
     );
   }
 }

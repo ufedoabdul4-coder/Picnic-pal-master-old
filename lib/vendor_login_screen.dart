@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'vendor_dashboard_screen.dart'; // Import the new vendor dashboard
+import 'forgot_password_screen.dart'; // Import the new forgot password screen
+import 'vendor_signup_screen.dart'; // Import the new vendor sign-up screen
 
 class VendorLoginScreen extends StatefulWidget {
   const VendorLoginScreen({super.key});
@@ -26,9 +29,9 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vendor login successful! Redirecting...')),
       );
-      // In a real app, you would navigate to a vendor-specific dashboard.
-      // For now, we can just pop the screen.
-      // Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const VendorDashboard()));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const VendorDashboardScreen()),
+      );
     }
   }
 
@@ -60,6 +63,8 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
                   _buildPasswordField(),
                   const SizedBox(height: 30),
                   _buildLoginButton(),
+                  const SizedBox(height: 8),
+                  _buildForgotPasswordText(),
                   const SizedBox(height: 20),
                   _buildVendorSignUpText(),
                 ],
@@ -141,12 +146,21 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
   Widget _buildVendorSignUpText() {
     return TextButton(
       onPressed: () {
-        // Placeholder for vendor sign-up navigation
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vendor account creation coming soon!')),
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const VendorSignUpScreen()),
         );
       },
       child: Text("Don't have a vendor account? Create one", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
+    );
+  }
+
+  Widget _buildForgotPasswordText() {
+    return Container(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
+        child: Text("Forgot Password?", style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
+      ),
     );
   }
 }
