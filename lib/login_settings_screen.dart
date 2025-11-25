@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'change_password_screen.dart'; // Import the new change password screen
 
 class LoginSettingsScreen extends StatefulWidget {
   const LoginSettingsScreen({super.key});
@@ -31,8 +32,7 @@ class _LoginSettingsScreenState extends State<LoginSettingsScreen> {
             context,
             title: 'Change Password',
             onTap: () {
-              // Placeholder for navigation
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Change Password functionality coming soon!')));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
             },
           ),
           _buildSettingsTile(

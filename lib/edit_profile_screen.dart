@@ -108,12 +108,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _emailController,
                       style: TextStyle(color: theme.colorScheme.onSecondary),
                       keyboardType: TextInputType.emailAddress,
+                      readOnly: true, // Make the email field read-only
                       decoration: _buildInputDecoration(theme, 'Email Address', Icons.email_outlined),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter your email';
-                        if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) return 'Please enter a valid email';
-                        return null;
-                      },
+                      // Removed validator as the field is now read-only
                     ),
                     const SizedBox(height: 40),
                     SizedBox(

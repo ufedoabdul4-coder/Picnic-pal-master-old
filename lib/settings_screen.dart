@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'change_email_screen.dart'; // Import the new change email screen
 import 'login_settings_screen.dart'; // Import the new login settings screen
 
 class SettingsScreen extends StatelessWidget {
@@ -27,6 +28,15 @@ class SettingsScreen extends StatelessWidget {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginSettingsScreen()));
             },
           ),
+          _buildSettingsTile(
+            context,
+            icon: Icons.email_outlined,
+            title: 'Change Email',
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangeEmailScreen()));
+            },
+          ),
+
           _buildSettingsTile(
             context,
             icon: Icons.notifications_outlined,
