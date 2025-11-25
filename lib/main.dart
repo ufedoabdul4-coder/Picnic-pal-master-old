@@ -248,44 +248,25 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Place> _allApiPlaces = []; // Holds all venues from the API
   List<Place> _recommendedPlaces = []; // Holds only the venues for the slideshow
-  List<Place> _filteredPlaces = [];
   bool _isLoading = true;
   String? _errorMessage;
   int currentIndex = 0;
   Timer? timer;
-  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchVenues();
-    _searchController.addListener(_onSearchChanged);
+    _fetchRecommendedVenues();
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
     timer?.cancel();
     super.dispose();
   }
 
-  void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _isSearching = query.isNotEmpty;
-      _filteredPlaces = _allApiPlaces.where((place) {
-        final nameLower = place.name.toLowerCase();
-        final descriptionLower = place.description.toLowerCase();
-        return nameLower.contains(query) || descriptionLower.contains(query);
-      }).toList();
-    });
-  }
-
-  Future<void> _fetchVenues() async {
+  Future<void> _fetchRecommendedVenues() async {
     // This is a mock API endpoint. Replace with your actual API.
     // For this example, I'm using a static JSON file host.
     final url = Uri.parse('https://api.npoint.io/4c7c82d5b508a9e3a740');
@@ -318,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }).toList();
         if (mounted) {
           setState(() {
-            _allApiPlaces = allApiPlaces;
             _recommendedPlaces = recommendedPlaces;
             _isLoading = false;
             startSlideshow();
@@ -405,23 +385,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _searchController,
-              // The listener in initState now handles this automatically
-              decoration: InputDecoration(
-                hintText: 'Search venues, events...', 
-                hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(153)), // Replaced withOpacity
-                filled: true,
-                fillColor: theme.colorScheme.secondary,
-                prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSecondary.withAlpha(153)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12.0), // Reduced height
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
             Text('Ready to plan your next event?',
                 style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withAlpha(179))), 
             const SizedBox(height: 20),
@@ -477,16 +440,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return Center(child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179)))); 
     }
 
-    if (_recommendedPlaces.isEmpty && !_isSearching) {
+    if (_recommendedPlaces.isEmpty) {
       return Center(child: Text('No recommended venues found.', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))));
     }
- 
-    // Show search results if searching, otherwise show the slideshow
-    if (_isSearching) {
-      return _buildSearchResults();
-    } else {
-      return _buildSlideshow();
-    }
+
+    return _buildSlideshow();
   }
 
   Widget _buildSlideshow() {
@@ -504,41 +462,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildVenueCardOverlay(_recommendedPlaces[currentIndex]),
         ],
       ),
-    );
-  }
-
-  Widget _buildSearchResults() {
-    final theme = Theme.of(context);
-    if (_filteredPlaces.isEmpty) {
-      return Center(child: Text('No venues found for "${_searchController.text}"', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))));
-    }
-
-    return ListView.builder(
-      itemCount: _filteredPlaces.length,
-      itemBuilder: (context, index) {
-        final place = _filteredPlaces[index];
-        return GestureDetector(
-          onTap: () => _showPlaceInfoDialog(place),
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Stack(
-              alignment: Alignment.bottomLeft,
-              children: [
-                Image.network(
-                  place.photoUrl!,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(height: 180, color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)),
-                ),
-                _buildVenueCardOverlay(place),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
