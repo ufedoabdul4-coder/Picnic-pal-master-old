@@ -109,7 +109,17 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
         title: Text('Change Email', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        iconTheme: IconThemeData(color: theme.colorScheme.primary),
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: CircleAvatar(
+            backgroundColor: theme.colorScheme.secondary,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back_ios_new, size: 16, color: theme.colorScheme.primary),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ),
         centerTitle: true,
       ),
       body: Padding(

@@ -239,20 +239,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildThemeSelector(BuildContext context) {
     final theme = Theme.of(context);
-    // Access the current theme mode from MyAppState via the global key
-    final currentThemeMode = myAppKey.currentState?.currentThemeMode ?? ThemeMode.system;
+    // Access the current theme name from MyAppState via the global key
+    final currentThemeName = myAppKey.currentState?.currentThemeName ?? 'Picnic Pal';
 
-    String themeModeToString(ThemeMode mode) {
-      switch (mode) {
-        case ThemeMode.light:
-          return 'Light';
-        case ThemeMode.dark:
-          return 'Dark';
-        case ThemeMode.system:
-        default:
-          return 'System';
-      }
-    }
+    // The list of available theme names. This should match the keys in MyAppState's `themes` map.
+    final List<String> themeNames = ['Picnic Pal', 'Dark', 'Light'];
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
@@ -260,22 +251,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: theme.colorScheme.secondary,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: PopupMenuButton<ThemeMode>(
-        onSelected: (ThemeMode newMode) {
-          myAppKey.currentState?.changeTheme(newMode);
+      child: PopupMenuButton<String>(
+        onSelected: (String newThemeName) {
+          // Call the changeTheme method with the selected theme name (String)
+          myAppKey.currentState?.changeTheme(newThemeName);
         },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<ThemeMode>>[
-          for (final mode in ThemeMode.values)
-            PopupMenuItem<ThemeMode>(
-              value: mode,
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+          for (final themeName in themeNames)
+            PopupMenuItem<String>(
+              value: themeName,
               child: Row(
                 children: [
-                  if (currentThemeMode == mode)
+                  if (currentThemeName == themeName)
                     Icon(Icons.check, color: theme.colorScheme.primary)
                   else
                     const SizedBox(width: 24), // Keep alignment
                   const SizedBox(width: 8),
-                  Text(themeModeToString(mode)),
+                  Text(themeName),
                 ],
               ),
             ),
@@ -283,7 +275,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListTile(
           leading: Icon(Icons.brightness_6_outlined, color: theme.colorScheme.primary),
           title: Text('Theme', style: TextStyle(color: theme.colorScheme.onSecondary)),
-          trailing: Text(themeModeToString(currentThemeMode), style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
+          // Display the current theme name
+          trailing: Text(currentThemeName, style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
         ),
       ),
     );

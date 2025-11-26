@@ -11,6 +11,7 @@ import 'map_screen.dart';
 import 'event_provider.dart';
 import 'login_screen.dart';
 import 'place.dart';
+import 'event_type_screen.dart'; // Import the new event type screen
 import 'venue_list_screen.dart'; // Import the new venue list screen
 
 // Global key to access MyApp's state for theme changes from anywhere.
@@ -28,14 +29,14 @@ class MyApp extends StatefulWidget {
 }
 
 class MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.system; // Default to system theme
+  String _currentTheme = 'Picnic Pal'; // Default theme
 
-  // Public getter to allow other parts of the app to read the current theme mode.
-  ThemeMode get currentThemeMode => _themeMode;
+  // Public getter for the current theme name
+  String get currentThemeName => _currentTheme;
 
-  void changeTheme(ThemeMode themeMode) {
+  void changeTheme(String themeName) {
     setState(() {
-      _themeMode = themeMode;
+      _currentTheme = themeName;
     });
   }
 
@@ -43,7 +44,7 @@ class MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     // High-contrast black and white theme for dark mode.
     // A very dark, near-black theme for a sleek look.
-    final darkTheme = ThemeData( // A classic black and white theme
+    final darkTheme = ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: Colors.black,
       primaryColor: Colors.white, // White as the main accent color
@@ -80,12 +81,37 @@ class MyAppState extends State<MyApp> {
       ),
     );
 
+    // The new "Origin" theme
+    final originTheme = ThemeData(
+      brightness: Brightness.light, // This is now a light theme
+      scaffoldBackgroundColor: const Color(0xFFFFFFFF), // Pure white background
+      primaryColor: const Color(0xFF8F857D), // Soft brown for primary text and icons
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF8F857D), // Main interactive color (buttons, icons)
+        onPrimary: Colors.white, // White text on soft brown buttons
+        surface: Color(0xFFFAFAFA), // A very light off-white for cards to distinguish them
+        onSurface: Color(0xFF433633), // A darker brown for text on cards for readability
+        secondary: Color(0xFFFAFAFA), // Surfaces for input fields, etc.
+        onSecondary: Color(0xFF433633), // Text on secondary surfaces
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFFFFFFFF), // Match the white background
+        elevation: 0,
+        iconTheme: IconThemeData(color: Color(0xFF433633)), // Use the darker brown for better contrast
+      ),
+    );
+
+    final Map<String, ThemeData> themes = {
+      'Picnic Pal': lightTheme,
+      'Dark': darkTheme,
+      'Light': originTheme, // Renamed "Origin" to "Light"
+    };
+
     // The MaterialApp should be the root. It will handle theme changes internally
     // without restarting the app. This fixes the splash screen issue.
     return MaterialApp(
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: _themeMode,
+      // The theme is now dynamically selected from our map
+      theme: themes[_currentTheme],
       debugShowCheckedModeBanner: false,
       home: const AnimatedSplashScreen(),
     );
@@ -224,7 +250,7 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         type: BottomNavigationBarType.fixed, // This ensures the background color is applied
-        unselectedItemColor: Colors.white70, 
+        unselectedItemColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), // Use a theme-aware color for unselected items
         // The currentIndex needs to be mapped back to the original icon index.
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -248,73 +274,99 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Place> _allApiPlaces = []; // Holds all venues from the API
   List<Place> _recommendedPlaces = []; // Holds only the venues for the slideshow
+  List<Place> _filteredPlaces = [];
   bool _isLoading = true;
   String? _errorMessage;
   int currentIndex = 0;
   Timer? timer;
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchRecommendedVenues();
+    _fetchVenues(); // Fetch the hardcoded venues
   }
 
   @override
   void dispose() {
+    // No longer need to remove the listener as we are using onChanged
+    _searchController.dispose();
     timer?.cancel();
     super.dispose();
   }
 
-  Future<void> _fetchRecommendedVenues() async {
-    // This is a mock API endpoint. Replace with your actual API.
-    // For this example, I'm using a static JSON file host.
-    final url = Uri.parse('https://api.npoint.io/4c7c82d5b508a9e3a740');
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _isSearching = query.isNotEmpty;
+      _filteredPlaces = _allApiPlaces.where((place) {
+        final nameLower = place.name.toLowerCase();
+        final descriptionLower = place.description.toLowerCase();
+        return nameLower.contains(query) || descriptionLower.contains(query);
+      }).toList();
+    });
+  }
 
-    try {
-      final response = await http.get(url);
+  Future<void> _fetchVenues() async {
+    // Using a hardcoded list of venues instead of fetching from an API.
+    final List<Place> hardcodedPlaces = [
+      Place(
+        placeId: "1",
+        name: "Millennium Park, Abuja",
+        description: "A large, well-maintained park with lush green spaces, a river, and Italian-style gardens. Perfect for picnics and relaxation.",        
+        photoUrl: "assets/images/millennium_park.jpg", // Using local asset
+        rating: 4.5,
+        totalRatings: 1200,
+        latitude: 9.072264,
+        longitude: 7.491302,
+      ),
+      Place(
+        placeId: "2",
+        name: "Jabi Lake Park, Abuja",
+        description: "A beautiful lakeside park offering boat rides, a serene environment for picnics, and a great spot for evening walks.",        
+        photoUrl: "assets/images/jabi_lake.jpg", // Using local asset
+        rating: 4.3,
+        totalRatings: 850,
+        latitude: 9.065,
+        longitude: 7.427,
+      ),
+      Place(
+        placeId: "3",
+        name: "Magicland Amusement Park",
+        description: "An amusement park with various rides and attractions, suitable for family outings and fun-filled party events.",        
+        photoUrl: "assets/images/magicland.jpg", // Using local asset
+        rating: 4.1,
+        totalRatings: 950,
+        latitude: 9.055,
+        longitude: 7.47,
+      ),
+      Place(
+        placeId: "4",
+        name: "Central Park Abuja",
+        description: "A modern and vibrant park known for its well-manicured lawns, playground, and space for various recreational activities and picnics.",        
+        photoUrl: "assets/images/central_park.jpg", // Using local asset
+        rating: 4.6,
+        totalRatings: 1100,
+        latitude: 9.058,
+        longitude: 7.493,
+      ),
+    ];
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        final allApiPlaces = data.map((json) {
-          return Place(
-            placeId: json['placeId'],
-            name: json['name'],
-            description: json['description'],
-            photoUrl: json['photoUrl'],
-            rating: (json['rating'] as num).toDouble(),
-            totalRatings: json['totalRatings'],
-            latitude: (json['latitude'] as num).toDouble(),
-            longitude: (json['longitude'] as num).toDouble(),
-          );
-        }).toList();
+    // Filter for the "Recommended" slideshow from the hardcoded list
+    final recommended = hardcodedPlaces.where((place) {
+      final descLower = place.description.toLowerCase();
+      return descLower.contains('picnic') || descLower.contains('park');
+    }).toList();
 
-        // Filter for the "Recommended" slideshow
-        final recommendedPlaces = allApiPlaces.where((place) {
-          final nameLower = place.name.toLowerCase();
-          final descLower = place.description.toLowerCase();
-          final isInAbuja = nameLower.contains('abuja') || descLower.contains('abuja');
-          final isPartyVenue = nameLower.contains('picnic') || descLower.contains('picnic') || nameLower.contains('party') || descLower.contains('party');
-          return isInAbuja && isPartyVenue;
-        }).toList();
-        if (mounted) {
-          setState(() {
-            _recommendedPlaces = recommendedPlaces;
-            _isLoading = false;
-            startSlideshow();
-          });
-        }
-      } else {
-        throw Exception('Failed to load venues: ${response.statusCode}');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Could not fetch venues. Please try again later.';
-          _isLoading = false;
-        });
-      }
-    }
+    setState(() {
+      _allApiPlaces = hardcodedPlaces;
+      _recommendedPlaces = recommended;
+      _isLoading = false;
+      startSlideshow();
+    });
   }
 
   void startSlideshow() {
@@ -385,6 +437,23 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            TextField(
+              controller: _searchController,
+              onChanged: (value) => _onSearchChanged(), // This will now trigger the search on every keystroke
+              decoration: InputDecoration(
+                hintText: 'Search venues, events...',
+                hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(153)),
+                filled: true,
+                fillColor: theme.colorScheme.secondary,
+                prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSecondary.withAlpha(153)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             Text('Ready to plan your next event?',
                 style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withAlpha(179))), 
             const SizedBox(height: 20),
@@ -440,6 +509,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return Center(child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179)))); 
     }
 
+    if (_isSearching) {
+      return _buildSearchResults();
+    }
+
     if (_recommendedPlaces.isEmpty) {
       return Center(child: Text('No recommended venues found.', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))));
     }
@@ -456,12 +529,47 @@ class _HomeScreenState extends State<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: _recommendedPlaces[currentIndex].photoUrl != null
-                ? Image.network(_recommendedPlaces[currentIndex].photoUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)))
+                ? Image.asset(_recommendedPlaces[currentIndex].photoUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)))
                 : Container(color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)),
           ),
           _buildVenueCardOverlay(_recommendedPlaces[currentIndex]),
         ],
       ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    final theme = Theme.of(context);
+    if (_filteredPlaces.isEmpty) {
+      return Center(child: Text('No venues found for "${_searchController.text}"', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))));
+    }
+
+    return ListView.builder(
+      itemCount: _filteredPlaces.length,
+      itemBuilder: (context, index) {
+        final place = _filteredPlaces[index];
+        return GestureDetector(
+          onTap: () => _showPlaceInfoDialog(place),
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Stack(
+              alignment: Alignment.bottomLeft,
+              children: [
+                Image.asset(
+                  place.photoUrl!,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(height: 180, color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)),
+                ),
+                _buildVenueCardOverlay(place),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -521,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 subtitle: Text('Choose all the details yourself.', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
                 onTap: () {
                   Navigator.pop(dialogContext); // Close dialog
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const VenueListScreen())); // Corrected path
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const EventTypeScreen())); // Navigate to the new event type screen
                 },
               ),
             ],
