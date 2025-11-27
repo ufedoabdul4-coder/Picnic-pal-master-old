@@ -218,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           border: Border.all(color: theme.colorScheme.secondary.withAlpha(200)),
         ),
         child: Builder(builder: (context) {
-          // Calculate stats from providers
+          
           final eventsPlanned = eventProvider.events.length;
           final venuesVisited = eventProvider.events.map((e) => e.location).toSet().length;
           final savedVenues = savedVenueProvider.savedVenueNames.length;
@@ -241,7 +241,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final theme = Theme.of(context);
     // Access the current theme name from MyAppState via the global key
     final currentThemeName = myAppKey.currentState?.currentThemeName ?? 'Picnic Pal';
-
+    
     // The list of available theme names. This should match the keys in MyAppState's `themes` map.
     final List<String> themeNames = ['Picnic Pal', 'Dark', 'Light'];
 

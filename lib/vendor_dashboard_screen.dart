@@ -41,19 +41,19 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
+            icon: Icon(Icons.dashboard), 
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt_outlined),
-            label: 'Listings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
+            icon: Icon(Icons.book_online), 
             label: 'Bookings',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
+            icon: Icon(Icons.menu_book),
+            label: 'Menu/Services',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person), // Changed icon
             label: 'Profile',
           ),
         ],
@@ -77,10 +77,18 @@ class VendorHomeTab extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Dashboard', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+        // The back button is automatically removed because this is the root of the dashboard
+        // and we are setting a custom title widget.
+        automaticallyImplyLeading: false,
+        title: Image.asset(
+          'assets/picnic_basket_logo.png', // Your logo asset
+          height: 40,
+          // Fallback in case the image fails to load
+          errorBuilder: (context, error, stackTrace) => Text('PicnicPal', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+        ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true, // Center the logo
         actions: [
           IconButton(
             icon: Icon(Icons.notifications_outlined, color: theme.colorScheme.onSurface),
@@ -108,11 +116,27 @@ class VendorHomeTab extends StatelessWidget {
   }
 
   Widget _buildSummarySection(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        Expanded(child: _SummaryCard(title: 'Revenue (Month)', value: '\$1,250', icon: Icons.attach_money, color: Colors.green)),
-        SizedBox(width: 16),
-        Expanded(child: _SummaryCard(title: 'New Bookings', value: '8', icon: Icons.calendar_today_outlined, color: Colors.blue)),
+        Expanded(
+          child: _SummaryCard(
+            title: 'Revenue (Month)',
+            value: '\$1,250',
+            icon: Icons.attach_money,
+            color: Colors.green,
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigating to Revenue Details...'))),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _SummaryCard(
+            title: 'New Bookings',
+            value: '8',
+            icon: Icons.calendar_today_outlined,
+            color: Colors.blue,
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigating to Bookings...'))),
+          ),
+        ),
       ],
     );
   }
@@ -137,26 +161,33 @@ class _SummaryCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _SummaryCard({required this.title, required this.value, required this.icon, required this.color});
+  const _SummaryCard({required this.title, required this.value, required this.icon, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 12),
-            Text(title, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179), fontSize: 14)),
-            const SizedBox(height: 4),
-            Text(value, style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold)),
-          ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        color: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 12),
+              Text(title, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179), fontSize: 14)),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
         ),
       ),
     );
