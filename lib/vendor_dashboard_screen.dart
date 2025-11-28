@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart'; // Import the login screen for logout navigation
+import 'revenue_details_screen.dart'; // Import the new revenue details screen
 
 class VendorDashboardScreen extends StatefulWidget {
   const VendorDashboardScreen({super.key});
@@ -124,7 +125,7 @@ class VendorHomeTab extends StatelessWidget {
             value: '\$1,250',
             icon: Icons.attach_money,
             color: Colors.green,
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigating to Revenue Details...'))),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RevenueDetailsScreen())),
           ),
         ),
         const SizedBox(width: 16),
@@ -250,12 +251,38 @@ class VendorProfileTab extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
-            onTap: () {
-              // Navigate back to the login screen and remove all previous routes
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (Route<dynamic> route) => false,
+            onTap: () async {
+              // Show a confirmation dialog before logging out
+              final bool? shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext dialogContext) {
+                  final theme = Theme.of(dialogContext);
+                  return AlertDialog(
+                    backgroundColor: theme.colorScheme.surface,
+                    title: Text('Logout?', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+                    content: Text('Are you sure you want to logout?', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                    actions: <Widget>[
+                      TextButton(
+                        child: Text('No', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+                        onPressed: () => Navigator.of(dialogContext).pop(false), // Dismiss the dialog and return false
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                        child: const Text('Yes', style: TextStyle(color: Colors.white)),
+                        onPressed: () => Navigator.of(dialogContext).pop(true), // Dismiss the dialog and return true
+                      ),
+                    ],
+                  );
+                },
               );
+
+              // If the user confirmed, then proceed with logout
+              if (shouldLogout == true) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+              }
             },
           ),
         ],

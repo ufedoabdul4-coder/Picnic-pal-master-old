@@ -341,17 +341,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
                 if (item["title"] == "Edit Profile") {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()))
+         
                       .then((value) {
                     // Reload data if the page was popped with an update signal
                     if (value == true) _loadUserData();
                   });
                 }
                 if (isLogout) {
-                  // Navigate back to the login screen and remove all previous routes
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    (Route<dynamic> route) => false,
-                  );
+                  // Show a confirmation dialog before logging out
+                  showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      final dialogTheme = Theme.of(dialogContext);
+                      return AlertDialog(
+                        backgroundColor: dialogTheme.colorScheme.surface,
+                        title: Text('Logout?', style: TextStyle(color: dialogTheme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+                        content: Text('Are you sure you want to logout?', style: TextStyle(color: dialogTheme.colorScheme.onSurface.withOpacity(0.8))),
+                        actions: <Widget>[
+                          TextButton(
+                            child: Text('No', style: TextStyle(color: dialogTheme.colorScheme.onSurface.withOpacity(0.7))),
+                            onPressed: () => Navigator.of(dialogContext).pop(false),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                            child: const Text('Yes', style: TextStyle(color: Colors.white)),
+                            onPressed: () => Navigator.of(dialogContext).pop(true),
+                          ),
+                        ],
+                      );
+                    },
+                  ).then((shouldLogout) {
+                    if (shouldLogout == true) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (Route<dynamic> route) => false,
+                      );
+                    }
+                  });
                 }
               },
             ),
