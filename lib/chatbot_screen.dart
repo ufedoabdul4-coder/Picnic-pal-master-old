@@ -409,8 +409,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final partyTypesList = partyCategories.entries.map((e) => "${e.key}:\n  - ${e.value.join('\n  - ')}").join('\n');
 
     // --- Build Conversation History ---
-    // We'll send the last few messages to give the AI context on the user's tone.
-    final history = _chatMessages.reversed.toList().sublist(1); // Exclude the initial bot message
+    // The messages are stored in reverse chronological order (newest first).
+    // We need to reverse it back to chronological order for the API.
+    // We also skip the very first message, which is the initial greeting from the bot.
+    final history = _chatMessages.reversed.toList().sublist(1);
     final conversationContents = history.map((msg) {
       return {
         'role': msg.isUser ? 'user' : 'model',
