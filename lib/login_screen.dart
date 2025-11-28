@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'main.dart'; // To navigate to MainScreen
 import 'forgot_password_screen.dart'; // Import the new forgot password screen
 import 'signup_screen.dart'; // Import the new sign-up screen
-import 'vendor_login_screen.dart'; // Import the new vendor login screen
+import 'event_planner_login_screen.dart'; // Import the new event planner login screen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -235,11 +235,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget _buildVendorLoginText() {
     return TextButton(
       onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const VendorLoginScreen()),
-        );
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const EventPlannerLoginScreen(),
+        ));
       },
-      child: Text("Are you a vendor? Login here", style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+      child: Text("Are you an Event Planner? Login here", style: TextStyle(color: Theme.of(context).colorScheme.primary)),
     );
   }
 

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'vendor_dashboard_screen.dart'; // Import the new vendor dashboard
+import 'event_planner_dashboard_screen.dart'; // Import the new event planner dashboard
 import 'forgot_password_screen.dart'; // Import the new forgot password screen
-import 'vendor_signup_screen.dart'; // Import the new vendor sign-up screen
+import 'event_planner_signup_screen.dart'; // Import the new event planner sign-up screen
 
-class VendorLoginScreen extends StatefulWidget {
-  const VendorLoginScreen({super.key});
+class EventPlannerLoginScreen extends StatefulWidget {
+  const EventPlannerLoginScreen({super.key});
 
   @override
-  State<VendorLoginScreen> createState() => _VendorLoginScreenState();
+  State<EventPlannerLoginScreen> createState() => _EventPlannerLoginScreenState();
 }
 
-class _VendorLoginScreenState extends State<VendorLoginScreen> {
+class _EventPlannerLoginScreenState extends State<EventPlannerLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -26,11 +26,11 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
   void _login() {
     if (_formKey.currentState?.validate() ?? false) {
       // Placeholder for vendor authentication logic
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vendor login successful! Redirecting...')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Event Planner login successful! Redirecting...'),
+      ));
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const VendorDashboardScreen()),
+        MaterialPageRoute(builder: (_) => const EventPlannerDashboardScreen()),
       );
     }
   }
@@ -41,7 +41,7 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Vendor Login', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+        title: Text('Event Planner Login', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.primary),
@@ -146,11 +146,11 @@ class _VendorLoginScreenState extends State<VendorLoginScreen> {
   Widget _buildVendorSignUpText() {
     return TextButton(
       onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const VendorSignUpScreen()),
-        );
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const EventPlannerSignUpScreen(),
+        ));
       },
-      child: Text("Don't have a vendor account? Create one", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
+      child: Text("Don't have a planner account? Create one", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
     );
   }
 

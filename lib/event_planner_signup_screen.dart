@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class VendorSignUpScreen extends StatefulWidget {
-  const VendorSignUpScreen({super.key});
+class EventPlannerSignUpScreen extends StatefulWidget {
+  const EventPlannerSignUpScreen({super.key});
 
   @override
-  State<VendorSignUpScreen> createState() => _VendorSignUpScreenState();
+  State<EventPlannerSignUpScreen> createState() => _EventPlannerSignUpScreenState();
 }
 
-class _VendorSignUpScreenState extends State<VendorSignUpScreen> {
+class _EventPlannerSignUpScreenState extends State<EventPlannerSignUpScreen> {
   final _businessNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -29,11 +29,10 @@ class _VendorSignUpScreenState extends State<VendorSignUpScreen> {
 
   void _signUp() {
     if (_formKey.currentState?.validate() ?? false) {
-      // Placeholder for vendor registration logic
+      // Placeholder for event planner registration logic
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vendor account created successfully! Please log in.')),
+        const SnackBar(content: Text('Planner account created successfully! Please log in.')),
       );
-      // After successful sign-up, navigate back to the vendor login screen
       Navigator.of(context).pop();
     }
   }
@@ -44,7 +43,7 @@ class _VendorSignUpScreenState extends State<VendorSignUpScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Vendor Registration', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+        title: Text('Planner Registration', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.primary),
@@ -212,7 +211,7 @@ class _VendorSignUpScreenState extends State<VendorSignUpScreen> {
   Widget _buildLoginText() {
     return TextButton(
       onPressed: () => Navigator.of(context).pop(),
-      child: Text("Already have a vendor account? Login", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
+      child: Text("Already have a planner account? Login", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
     );
   }
 }

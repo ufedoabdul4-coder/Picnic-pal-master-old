@@ -2,22 +2,22 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart'; // Import the login screen for logout navigation
 import 'revenue_details_screen.dart'; // Import the new revenue details screen
 
-class VendorDashboardScreen extends StatefulWidget {
-  const VendorDashboardScreen({super.key});
+class EventPlannerDashboardScreen extends StatefulWidget {
+  const EventPlannerDashboardScreen({super.key});
 
   @override
-  State<VendorDashboardScreen> createState() => _VendorDashboardScreenState();
+  State<EventPlannerDashboardScreen> createState() => _EventPlannerDashboardScreenState();
 }
 
-class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
+class _EventPlannerDashboardScreenState extends State<EventPlannerDashboardScreen> {
   int _selectedIndex = 0;
 
   // Placeholder pages for the dashboard sections
   static const List<Widget> _widgetOptions = <Widget>[
-    VendorHomeTab(),
-    VendorListingsTab(),
-    VendorBookingsTab(),
-    VendorProfileTab(),
+    EventPlannerHomeTab(),
+    EventPlannerServicesTab(),
+    EventPlannerBookingsTab(),
+    EventPlannerProfileTab(),
   ];
 
   void _onItemTapped(int index) {
@@ -71,8 +71,8 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
 
 // Placeholder Tab Widgets
 
-class VendorHomeTab extends StatelessWidget {
-  const VendorHomeTab({super.key});
+class EventPlannerHomeTab extends StatelessWidget {
+  const EventPlannerHomeTab({super.key});
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -195,8 +195,8 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class VendorListingsTab extends StatelessWidget {
-  const VendorListingsTab({super.key});
+class EventPlannerServicesTab extends StatelessWidget {
+  const EventPlannerServicesTab({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -209,8 +209,8 @@ class VendorListingsTab extends StatelessWidget {
   }
 }
 
-class VendorBookingsTab extends StatelessWidget {
-  const VendorBookingsTab({super.key});
+class EventPlannerBookingsTab extends StatelessWidget {
+  const EventPlannerBookingsTab({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,8 +223,8 @@ class VendorBookingsTab extends StatelessWidget {
   }
 }
 
-class VendorProfileTab extends StatelessWidget {
-  const VendorProfileTab({super.key});
+class EventPlannerProfileTab extends StatelessWidget {
+  const EventPlannerProfileTab({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -241,7 +241,7 @@ class VendorProfileTab extends StatelessWidget {
             child: Icon(Icons.storefront, size: 50, color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(height: 12),
-          Center(child: Text("Vendor's Business Name", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface))),
+          Center(child: Text("Planner's Business Name", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface))),
           const SizedBox(height: 30),
           ListTile(
             leading: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.onSurface),
