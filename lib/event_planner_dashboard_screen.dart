@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart'; // Import the login screen for logout navigation
+import 'package:intl/intl.dart'; // Import for date and number formatting
 import 'revenue_details_screen.dart'; // Import the new revenue details screen
 
 class EventPlannerDashboardScreen extends StatefulWidget {
@@ -12,12 +13,13 @@ class EventPlannerDashboardScreen extends StatefulWidget {
 class _EventPlannerDashboardScreenState extends State<EventPlannerDashboardScreen> {
   int _selectedIndex = 0;
 
-  // Placeholder pages for the dashboard sections
-  static const List<Widget> _widgetOptions = <Widget>[
-    EventPlannerHomeTab(),
-    EventPlannerServicesTab(),
-    EventPlannerBookingsTab(),
-    EventPlannerProfileTab(),
+  // Use `final` instead of `const` because EventPlannerWalletTab is not a constant.
+  static final List<Widget> _widgetOptions = <Widget>[
+    const EventPlannerHomeTab(),
+    const EventPlannerBookingsTab(),
+    EventPlannerWalletTab(), // New Wallet Tab
+    const EventPlannerServicesTab(),
+    const EventPlannerProfileTab(), // Profile is now the last item
   ];
 
   void _onItemTapped(int index) {
@@ -30,37 +32,35 @@ class _EventPlannerDashboardScreenState extends State<EventPlannerDashboardScree
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      floatingActionButton: _selectedIndex == 1 // Show FAB only on Listings tab
-          ? FloatingActionButton(
-              onPressed: () { /* Placeholder for adding a new listing */ },
-              backgroundColor: theme.colorScheme.primary,
-              child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
-            ) : null,
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard), 
-            label: 'Dashboard',
+            icon: Icon(Icons.home_filled),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.book_online), 
             label: 'Bookings',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book),
-            label: 'Menu/Services',
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            label: 'Wallet',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person), // Changed icon
+            icon: Icon(Icons.menu_book),
+            label: 'Services',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
             label: 'Profile',
           ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: theme.colorScheme.primary,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         backgroundColor: theme.colorScheme.surface,
@@ -69,8 +69,6 @@ class _EventPlannerDashboardScreenState extends State<EventPlannerDashboardScree
   }
 }
 
-// Placeholder Tab Widgets
-
 class EventPlannerHomeTab extends StatelessWidget {
   const EventPlannerHomeTab({super.key});
   @override
@@ -78,23 +76,19 @@ class EventPlannerHomeTab extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        // The back button is automatically removed because this is the root of the dashboard
-        // and we are setting a custom title widget.
         automaticallyImplyLeading: false,
         title: Image.asset(
           'assets/picnic_basket_logo.png', // Your logo asset
           height: 40,
-          // Fallback in case the image fails to load
           errorBuilder: (context, error, stackTrace) => Text('PicnicPal', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
         ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        centerTitle: true, // Center the logo
+        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.notifications_outlined, color: theme.colorScheme.onSurface),
             onPressed: () {
-              // Placeholder for notifications
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notifications coming soon!')));
             },
           ),
@@ -104,54 +98,63 @@ class EventPlannerHomeTab extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          _buildSummarySection(context),
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryCard(
+                  title: 'Revenue (Month)',
+                  value: '£1,250',
+                  icon: Icons.attach_money,
+                  color: Colors.green,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RevenueDetailsScreen())),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _SummaryCard(
+                  title: 'New Bookings',
+                  value: '8',
+                  icon: Icons.calendar_today_outlined,
+                  color: Colors.blue,
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigating to Bookings...'))),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           Text('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
           const SizedBox(height: 12),
-          _buildRecentActivityCard(context, icon: Icons.fact_check_outlined, title: 'New Booking: "Lakeside Picnic"', subtitle: 'For this Saturday, 2:00 PM'),
-          _buildRecentActivityCard(context, icon: Icons.rate_review_outlined, title: 'New Review: 4.5 Stars', subtitle: 'From user "Alex Ray"'),
-          _buildRecentActivityCard(context, icon: Icons.question_answer_outlined, title: 'New Message', subtitle: 'Regarding "Garden Party" availability'),
+          Card(
+            color: theme.colorScheme.surface,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: Icon(Icons.fact_check_outlined, color: theme.colorScheme.primary),
+              title: Text('New Booking: "Lakeside Picnic"', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
+              subtitle: Text('For this Saturday, 2:00 PM', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
+            ),
+          ),
+          Card(
+            color: theme.colorScheme.surface,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: Icon(Icons.rate_review_outlined, color: theme.colorScheme.primary),
+              title: Text('New Review: 4.5 Stars', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
+              subtitle: Text('From user "Alex Ray"', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
+            ),
+          ),
+          Card(
+            color: theme.colorScheme.surface,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: Icon(Icons.question_answer_outlined, color: theme.colorScheme.primary),
+              title: Text('New Message', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
+              subtitle: Text('Regarding "Garden Party" availability', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
+            ),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSummarySection(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _SummaryCard(
-            title: 'Revenue (Month)',
-            value: '\$1,250',
-            icon: Icons.attach_money,
-            color: Colors.green,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RevenueDetailsScreen())),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _SummaryCard(
-            title: 'New Bookings',
-            value: '8',
-            icon: Icons.calendar_today_outlined,
-            color: Colors.blue,
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigating to Bookings...'))),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecentActivityCard(BuildContext context, {required IconData icon, required String title, required String subtitle}) {
-    final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.surface,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Icon(icon, color: theme.colorScheme.primary),
-        title: Text(title, style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
       ),
     );
   }
@@ -195,6 +198,153 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
+class EventPlannerWalletTab extends StatelessWidget {
+  EventPlannerWalletTab({super.key});
+
+  final List<Map<String, dynamic>> _transactionHistory = const [
+    {'title': 'Payment: "Sunset Picnic"', 'amount': 250.00, 'date': 'Nov 26, 2025'},
+    {'title': 'Platform Fee (5%)', 'amount': -12.50, 'date': 'Nov 26, 2025'},
+    {'title': 'Payment: "Corporate Lunch"', 'amount': 800.00, 'date': 'Nov 24, 2025'},
+    {'title': 'Platform Fee (5%)', 'amount': -40.00, 'date': 'Nov 24, 2025'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('Wallet & Payouts', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        centerTitle: false,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          // ... (Other wallet components like balance would go here)
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Transaction History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionHistoryScreen()));
+                },
+                child: Text('View All', style: TextStyle(color: theme.colorScheme.primary)),
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          ..._transactionHistory.take(4).map((tx) => _buildHistoryTile(
+            context,
+            title: tx['title'],
+            subtitle: tx['date'],
+            amount: tx['amount'],
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryTile(BuildContext context, {required String title, required String subtitle, required double amount}) {
+    final theme = Theme.of(context);
+    final currencyFormat = NumberFormat.currency(locale: 'en_GB', symbol: '£');
+    final isCredit = amount > 0;
+
+    return Card(
+      color: theme.colorScheme.surface,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: Icon(
+          isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+          color: isCredit ? Colors.green : Colors.redAccent,
+        ),
+        title: Text(title, style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+        trailing: Text(
+          currencyFormat.format(amount),
+          style: TextStyle(
+            color: isCredit ? Colors.green : Colors.redAccent,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TransactionHistoryScreen extends StatelessWidget {
+  const TransactionHistoryScreen({super.key});
+
+  // More detailed mock data for the dedicated screen
+  static final List<Map<String, dynamic>> _fullTransactionHistory = [
+    {'id': 'TXN1001', 'title': 'Payment: "Sunset Picnic"', 'amount': 250.00, 'date': '2025-11-26 14:30', 'status': 'Completed'},
+    {'id': 'TXN1002', 'title': 'Platform Fee (5%)', 'amount': -12.50, 'date': '2025-11-26 14:31', 'status': 'Completed'},
+    {'id': 'TXN1003', 'title': 'Payment: "Corporate Lunch"', 'amount': 800.00, 'date': '2025-11-24 10:15', 'status': 'Completed'},
+    {'id': 'TXN1004', 'title': 'Platform Fee (5%)', 'amount': -40.00, 'date': '2025-11-24 10:16', 'status': 'Completed'},
+    {'id': 'TXN1005', 'title': 'Refund: "Cancelled Booking"', 'amount': -150.00, 'date': '2025-11-22 09:00', 'status': 'Completed'},
+    {'id': 'TXN1006', 'title': 'Payout to Bank Account', 'amount': -1100.50, 'date': '2025-11-15 18:00', 'status': 'Completed'},
+    {'id': 'TXN1007', 'title': 'Payment: "Beach Bonfire"', 'amount': 450.00, 'date': '2025-11-14 11:45', 'status': 'Completed'},
+    {'id': 'TXN1008', 'title': 'Platform Fee (5%)', 'amount': -22.50, 'date': '2025-11-14 11:46', 'status': 'Completed'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currencyFormat = NumberFormat.currency(locale: 'en_GB', symbol: '£');
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('Transaction History', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.primary),
+        centerTitle: true,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _fullTransactionHistory.length,
+        itemBuilder: (context, index) {
+          final tx = _fullTransactionHistory[index];
+          final amount = tx['amount'] as double;
+          final isCredit = amount > 0;
+          final parsedDate = DateTime.parse(tx['date']);
+
+          return Card(
+            color: theme.colorScheme.surface,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: Icon(
+                isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+                color: isCredit ? Colors.green : Colors.redAccent,
+              ),
+              title: Text(tx['title'], style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                '${DateFormat('MMM d, yyyy, hh:mm a').format(parsedDate)} • ${tx['id']}',
+                style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+              ),
+              trailing: Text(
+                currencyFormat.format(amount),
+                style: TextStyle(
+                  color: isCredit ? Colors.green : Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class EventPlannerServicesTab extends StatelessWidget {
   const EventPlannerServicesTab({super.key});
   @override
@@ -202,7 +352,7 @@ class EventPlannerServicesTab extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('My Listings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, centerTitle: true,
       ),
       body: const Center(child: Text('Your listings will appear here.')),
     );
@@ -216,7 +366,7 @@ class EventPlannerBookingsTab extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Bookings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, centerTitle: true,
       ),
       body: const Center(child: Text('Your bookings will appear here.')),
     );
@@ -230,7 +380,7 @@ class EventPlannerProfileTab extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 20),
