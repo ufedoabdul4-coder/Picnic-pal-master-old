@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'venue_list_screen.dart'; // To navigate to the venue list
+import 'event_subtype_screen.dart'; // Import the new subtype screen
 
 class EventTypeScreen extends StatelessWidget {
   const EventTypeScreen({super.key});
@@ -10,12 +10,12 @@ class EventTypeScreen extends StatelessWidget {
 
     // A hardcoded list of event types for the user to choose from
     final List<Map<String, dynamic>> eventTypes = [
-      {'name': 'Picnic', 'icon': Icons.park_outlined},
-      {'name': 'Birthday Party', 'icon': Icons.cake_outlined},
-      {'name': 'Wedding', 'icon': Icons.favorite_border},
-      {'name': 'Corporate Event', 'icon': Icons.business_center_outlined},
-      {'name': 'Family Reunion', 'icon': Icons.group_outlined},
-      {'name': 'Other', 'icon': Icons.more_horiz_outlined},
+      {'name': 'Picnic', 'icon': Icons.park_outlined, 'hasSubtypes': true},
+      {'name': 'Barbecue', 'icon': Icons.outdoor_grill_outlined, 'hasSubtypes': true},
+      {'name': 'Party', 'icon': Icons.cake_outlined, 'hasSubtypes': true},
+      {'name': 'Wedding', 'icon': Icons.favorite_border, 'hasSubtypes': false},
+      {'name': 'Corporate Event', 'icon': Icons.business_center_outlined, 'hasSubtypes': false},
+      {'name': 'Other', 'icon': Icons.more_horiz_outlined, 'hasSubtypes': false},
     ];
 
     return Scaffold(
@@ -56,11 +56,23 @@ class EventTypeScreen extends StatelessWidget {
               ),
               trailing: Icon(Icons.arrow_forward_ios, size: 16, color: theme.colorScheme.onSecondary.withAlpha(179)),
               onTap: () {
-                // After selecting an event type, navigate to the venue list screen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VenueListScreen()),
-                );
+                final String eventName = eventType['name'] as String;
+                final bool hasSubtypes = eventType['hasSubtypes'] as bool;
+
+                // If the event has subtypes, navigate to the subtype screen.
+                // Otherwise, you can navigate directly to the venue list or another screen.
+                if (hasSubtypes) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => EventSubtypeScreen(eventType: eventName)),
+                  );
+                } else {
+                  // TODO: Decide where to navigate for events without subtypes.
+                  // For now, it just shows a temporary message.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$eventName selected! Venue selection coming soon.')),
+                  );
+                }
               },
             ),
           );

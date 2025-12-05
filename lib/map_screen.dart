@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'place.dart';
 
 class MapScreen extends StatefulWidget {
@@ -11,11 +10,15 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  GoogleMapController? _mapController;
   final List<Place> _places = [];
-  List<Marker> _markers = [];
+  final Set<Marker> _markers = {};
 
   // Initial camera position over Abuja, Nigeria
-  static const LatLng _initialPosition = LatLng(9.0765, 7.3986);
+  static const CameraPosition _initialCameraPosition = CameraPosition(
+    target: LatLng(9.0765, 7.3986),
+    zoom: 11.0,
+  );
 
   @override
   void initState() {
@@ -72,34 +75,19 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _createMarkers() {
-    _markers = _places.map((place) {
-      return Marker(
-        width: 80.0,
-        height: 80.0,
-        point: LatLng(place.latitude, place.longitude),
-        child: IconButton(
-          icon: Icon(Icons.location_on, color: Colors.red, size: 45.0),
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              builder: (context) {
-                return Container(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(place.name, style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8.0),
-                      Text('Rating: ${place.rating} ⭐'),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+    _markers.clear();
+    for (final place in _places) {
+      _markers.add(
+        Marker(
+          markerId: MarkerId(place.placeId),
+          position: LatLng(place.latitude, place.longitude),
+          infoWindow: InfoWindow(
+            title: place.name,
+            snippet: 'Rating: ${place.rating} ⭐',
+          ),
         ),
       );
-    }).toList();
+    }
   }
 
   @override
@@ -111,20 +99,14 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: theme.colorScheme.surface,
         centerTitle: true,
       ),
-      body: FlutterMap(
-        options: MapOptions(
-          initialCenter: _initialPosition,
-          initialZoom: 11.0,
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            subdomains: ['a', 'b', 'c'],
-          ),
-          MarkerLayer(
-            markers: _markers,
-          ),
-        ],
+      body: GoogleMap(
+        initialCameraPosition: _initialCameraPosition,
+        onMapCreated: (GoogleMapController controller) {
+          _mapController = controller;
+        },
+        markers: _markers,
+        myLocationButtonEnabled: false, // Optional: to keep the UI clean
+        zoomControlsEnabled: false, // Optional: to keep the UI clean
       ),
     );
   }

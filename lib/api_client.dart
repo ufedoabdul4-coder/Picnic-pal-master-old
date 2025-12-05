@@ -6,7 +6,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class ApiClient {
   // Replace with your actual backend URL. For local development, use your machine's IP.
   // On Android emulator, this is typically 'http://10.0.2.2:5000'.
-  static const String _baseUrl = 'http://10.20.30.14:5000'; 
+  // IMPORTANT: This must include the 'http://' prefix and the port number.
+  static const String _baseUrl = 'http://192.168.0.104:5000'; 
   static const _storage = FlutterSecureStorage();
 
   // --- Token Management ---
@@ -29,7 +30,7 @@ class ApiClient {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('$_baseUrl/transcribe'),
+      Uri.parse('$_baseUrl/transcribe'), // This will now correctly parse the full URL
     );
 
     request.headers['x-app-token'] = token;

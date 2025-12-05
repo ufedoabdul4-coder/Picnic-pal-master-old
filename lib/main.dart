@@ -12,12 +12,15 @@ import 'event_provider.dart';
 import 'login_screen.dart';
 import 'place.dart';
 import 'event_type_screen.dart'; // Import the new event type screen
-import 'venue_list_screen.dart'; // Import the new venue list screen
+import 'venue_list_screen.dart';
 
 // Global key to access MyApp's state for theme changes from anywhere.
 final GlobalKey<MyAppState> myAppKey = GlobalKey();
 
-void main() {
+void main() async {
+  // This is required to ensure that Flutter's bindings are initialized
+  // before any async operations are performed in main.
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp(key: myAppKey));
 }
 

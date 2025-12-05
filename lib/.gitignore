@@ -1,5 +1,5 @@
-# Environment variables
-.env
+# Backend folder
+picnic-pal-backend/venv/
 
 # Python cache
 __pycache__/

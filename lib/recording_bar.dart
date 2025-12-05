@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'dart:developer' as developer;
 
 class RecordingBar extends StatefulWidget {
   final bool isVisible;
@@ -20,13 +22,14 @@ class RecordingBar extends StatefulWidget {
 }
 
 class _RecordingBarState extends State<RecordingBar> {
-  late final RecorderController _recorderController;
+  late final AudioRecorder _audioRecorder;
   String? _audioPath;
+  bool _isRecordingActive = false;
 
   @override
   void initState() {
     super.initState();
-    _recorderController = RecorderController();
+    _audioRecorder = AudioRecorder();
   }
 
   @override
@@ -38,32 +41,106 @@ class _RecordingBarState extends State<RecordingBar> {
   }
 
   Future<void> _startRecording() async {
-    final tempDir = await getTemporaryDirectory();
-    _audioPath = '${tempDir.path}/recording.wav';
+    try {
+      if (!await _audioRecorder.hasPermission()) {
+        developer.log("Microphone permission not granted");
+        widget.onCancel(); // Cancel if no permission
+        return;
+      }
 
-    // Start audio recording using the waveform controller.
-    await _recorderController.record(path: _audioPath!);
-    setState(() {}); // Update UI to show waveform
+      final tempDir = await getTemporaryDirectory();
+      _audioPath = '${tempDir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.wav';
+      
+      developer.log("Starting recording to: $_audioPath");
+
+     const config = RecordConfig(encoder: AudioEncoder.wav, sampleRate: 16000, numChannels: 1);
+
+      await _audioRecorder.start(config, path: _audioPath!);
+
+      if (mounted) {
+        setState(() {
+          _isRecordingActive = true;
+        });
+      }
+      developer.log("Recording started successfully");
+    } catch (e) {
+      developer.log("Error starting recording: $e");
+      _isRecordingActive = false;
+    }
   }
 
   Future<void> _stopRecordingAndConfirm() async {
-    await _stopAll();
-    widget.onConfirm(_audioPath ?? '');
+    if (!_isRecordingActive) {
+      developer.log("Recording not active, ignoring confirm");
+      return;
+    }
+    
+    await _stopRecording();
+    
+    if (_audioPath != null) {
+      final file = File(_audioPath!);
+      final exists = await file.exists();
+      final fileSize = exists ? await file.length() : 0;
+      
+      developer.log("Audio file check - Path: $_audioPath, Exists: $exists, Size: $fileSize bytes");
+      
+      if (exists && fileSize > 0) {
+        developer.log("Audio file is valid, sending to transcription");
+        widget.onConfirm(_audioPath!);
+      } else {
+        developer.log("Audio file is empty or doesn't exist");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Recording failed. Please try again.")),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _stopRecordingAndCancel() async {
-    await _stopAll();
+    if (!_isRecordingActive) {
+      developer.log("Recording not active, ignoring cancel");
+      return;
+    }
+    
+    await _stopRecording();
+    
+    // Clean up the audio file if cancel is pressed
+    if (_audioPath != null) {
+      final file = File(_audioPath!);
+      try {
+        if (await file.exists()) {
+          await file.delete();
+          developer.log("Cancelled recording deleted: $_audioPath");
+        }
+      } catch (e) {
+        developer.log("Error deleting audio file: $e");
+      }
+    }
+    
     widget.onCancel();
   }
 
-  Future<void> _stopAll() async {
-    await _recorderController.stop();
-    if (mounted) setState(() {});
+  Future<void> _stopRecording() async {
+    try {
+      developer.log("Stopping recording...");
+      await _audioRecorder.stop();
+      developer.log("Recording stopped successfully.");
+    } catch (e) {
+      developer.log("Error stopping recording: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecordingActive = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _recorderController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
@@ -83,33 +160,28 @@ class _RecordingBarState extends State<RecordingBar> {
             top: false,
             child: Row(
               children: [
-                // Waveform
-                AudioWaveforms(
-                  size: const Size(80, 40),
-                  recorderController: _recorderController,
-                  waveStyle: WaveStyle(
-                    waveColor: theme.colorScheme.primary,
-                    showDurationLabel: false,
-                    spacing: 4.0,
-                    waveThickness: 2.0,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Transcription Text
+                // Recording Icon
+                Icon(Icons.mic, color: theme.colorScheme.primary, size: 28),
+                const SizedBox(width: 12),
+                // Transcription text / status
                 Expanded(
                   child: Text(
                     "Listening...",
-                    style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 16),
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Action Buttons
+                // Cancel button
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.redAccent, size: 28),
                   onPressed: _stopRecordingAndCancel,
                 ),
+                // Confirm button
                 IconButton(
                   icon: Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 28),
                   onPressed: _stopRecordingAndConfirm,

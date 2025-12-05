@@ -44,6 +44,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Environment variables
+.env
+*.env.*
+
+# Ignore Google Cloud credentials
+*.json
+
 # Ignore local gradle distributions
 android/gradle/wrapper/gradle-*.zip
 *.zip

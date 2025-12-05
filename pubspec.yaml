@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  googleapis: ^11.1.0
+  googleapis_auth: ^1.4.0
   flutter_svg: ^2.0.10+1
   http: ^1.2.1
   intl: ^0.19.0
@@ -22,7 +24,8 @@ dependencies:
   record_platform_interface: ^1.4.0
   permission_handler: ^11.3.1
   flutter_secure_storage: ^9.1.1
-  audio_waveforms: ^1.0.5
+  google_maps_flutter: ^2.6.1
+  audio_waveforms: ^2.0.0
   cupertino_icons: ^1.0.8
   flutter_tts: ^4.0.2
 
@@ -37,7 +40,7 @@ flutter:
 
   assets:
     - assets/images/
-
+    - assets/google-credentials.json
 flutter_launcher_icons:
   android: "app_icon" # The name of the icon file for Android
   ios: false           # Generate icons for iOS

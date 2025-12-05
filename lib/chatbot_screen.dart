@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Already imported, but good to note
 import 'recording_bar.dart';
 import 'venue_model.dart' as venue_model;
 import 'plan_picnic_screen.dart' show partyCategories;
@@ -349,21 +349,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final transcript = await ApiClient.transcribeAudio(audioPath);
-      if (transcript.isNotEmpty) {
-        _chatController.text = transcript;
-      } else {
+      // Use the ApiClient to handle the transcription call.
+      // This keeps your API logic clean and centralized.
+      final transcription = await ApiClient.transcribeAudio(audioPath);
+
+      if (transcription.isNotEmpty) {
+        _chatController.text = transcription;
+        // Optionally, send the message right away
+        // _handleUserMessage(transcription);
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Couldn't recognize speech. Please try again.")),
         );
       }
     } catch (e) {
       developer.log('Transcription Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't process audio, please try again.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Network error. Is the backend server running?")),
+        );
+      }
     } finally {
-      // Clean up the temporary audio file
       final audioFile = File(audioPath);
       if (await audioFile.exists()) {
         await audioFile.delete();
@@ -439,7 +445,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     4.  Once you have all the details, confirm with the user.
     5.  After confirmation, your FINAL response MUST be ONLY a JSON object with the plan details. Do not add any other text before or after the JSON.
 
-    The JSON format MUST be:
+    The JSON format MUST be:z
     ```json
     {
       "plan": {
