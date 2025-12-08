@@ -268,15 +268,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       color: theme.colorScheme.surface,
       child: SafeArea(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end, // Aligns buttons to the bottom
           children: [
             Expanded(
               child: TextField(
                 controller: _chatController,
+                keyboardType: TextInputType.multiline,
+                maxLines: null, // Allows the text field to grow vertically
+                minLines: 1, // Starts as a single line
                 style: TextStyle(color: theme.colorScheme.onSurface),
                 decoration: InputDecoration(
                   hintText: "e.g., 'Plan a birthday party'",
                   hintStyle: TextStyle(color: theme.colorScheme.onSurface.withAlpha(128)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  // Adjust padding for a multiline text field
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (text) => _handleUserMessage(text),
