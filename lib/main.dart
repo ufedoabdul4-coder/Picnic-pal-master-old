@@ -435,68 +435,67 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _searchController,
-              onChanged: (value) => _onSearchChanged(), // This will now trigger the search on every keystroke
-              decoration: InputDecoration(
-                hintText: 'Search venues, events...',
-                hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(153)),
-                filled: true,
-                fillColor: theme.colorScheme.secondary,
-                prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSecondary.withAlpha(153)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                  borderSide: BorderSide.none,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _searchController,
+                onChanged: (value) => _onSearchChanged(), // This will now trigger the search on every keystroke
+                decoration: InputDecoration(
+                  hintText: 'Search venues, events...',
+                  hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(153)),
+                  filled: true,
+                  fillColor: theme.colorScheme.secondary,
+                  prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSecondary.withAlpha(153)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Text('Ready to plan your next event?',
-                style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withAlpha(179))), 
-            const SizedBox(height: 20),
-            Center(
-              child: SizedBox(
-                height: 100,
-                width: 140, // Set a fixed width to show only one item
-                child: PageView(
-                  controller: PageController(viewportFraction: 1.0), // Each page takes the full viewport
+              const SizedBox(height: 20),
+              Text('Ready to plan your next event?',
+                  style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withAlpha(179))), 
+              const SizedBox(height: 20),
+              Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 24.0, // Horizontal space between items
+                  runSpacing: 24.0, // Vertical space between rows
                   children: [
                     _quickAction(Icons.celebration, 'Plan Event', () => _showPlanningOptions(context)),
-                    _quickAction(Icons.apartment_outlined, 'Rent Apartments', () { // New Item
+                    _quickAction(Icons.apartment_outlined, 'Rent Apartments', () {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Apartment rentals coming soon!"),
                         backgroundColor: Color(0xFFD4A017),
                       ));
                     }),
-                    _quickAction(Icons.hotel_outlined, 'Book Hotel', () { // New Item
+                    _quickAction(Icons.hotel_outlined, 'Book Hotel', () {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Hotel booking coming soon!"),
                         backgroundColor: Color(0xFFD4A017),
                       ));
                     }),
                     _quickAction(Icons.card_giftcard, 'Send Gift', () {
-                      // Placeholder for gift functionality
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Gift feature coming soon!"),
-                        backgroundColor: Color(0xFFD4A017), // Keep gold for snackbar
+                        backgroundColor: Color(0xFFD4A017),
                       ));
                     }),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 30),
-            Text('Recommended Venues',
-                style: TextStyle(fontSize: 18, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10), 
-            Expanded(child: _buildVenuesWidget()),
-          ],
+              const SizedBox(height: 60), // Increased space to move the section down
+              Text('Recommended Venues',
+                  style: TextStyle(fontSize: 18, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10), 
+              SizedBox(height: 250, child: _buildVenuesWidget()),
+            ],
+          ),
         ),
       ),
     );
@@ -646,17 +645,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: theme.colorScheme.primary,
-            child: Icon(icon, color: theme.colorScheme.onPrimary),
-          ),
-          const SizedBox(height: 8),
-          Text(text, style: TextStyle(color: theme.colorScheme.onSurface)),
-        ],
+      child: SizedBox(
+        width: 140, // Set a width to control the size of each item
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: theme.colorScheme.primary,
+              child: Icon(icon, color: theme.colorScheme.onPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(text, style: TextStyle(color: theme.colorScheme.onSurface), textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }

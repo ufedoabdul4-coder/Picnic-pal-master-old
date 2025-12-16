@@ -32,7 +32,7 @@ Quick links:
     ```
 2. Set up API Keys:
 
-    This project uses API keys for Google Gemin\
+    This project uses API keys for Google GeminI
     
     -   **Gemini API Key**: The application loads the Gemini API key from environment variables. To run the app, you need to pass it as a `--dart-define` flag.
 
