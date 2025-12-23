@@ -7,7 +7,8 @@ class ApiClient {
   // Replace with your actual backend URL. For local development, use your machine's IP.
   // On Android emulator, this is typically 'http://10.0.2.2:5000'.
   // IMPORTANT: This must include the 'http://' prefix and the port number.
-  static const String _baseUrl = 'http://192.168.0.104:5000'; 
+  static const String _baseUrl = 'http://192.168.0.112:5000';
+ 
   static const _storage = FlutterSecureStorage();
 
   // --- Token Management ---

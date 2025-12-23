@@ -3,8 +3,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'profile_screen.dart';
-// ignore: unused_import
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'plan_picnic_screen.dart';
 import 'chatbot_screen.dart';
 import 'map_screen.dart';
@@ -13,6 +17,8 @@ import 'login_screen.dart';
 import 'place.dart';
 import 'event_type_screen.dart'; // Import the new event type screen
 import 'venue_list_screen.dart';
+import 'rent_apartment_screen.dart';
+import 'book_hotel_screen.dart';
 
 // Global key to access MyApp's state for theme changes from anywhere.
 final GlobalKey<MyAppState> myAppKey = GlobalKey();
@@ -21,26 +27,45 @@ void main() async {
   // This is required to ensure that Flutter's bindings are initialized
   // before any async operations are performed in main.
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp(key: myAppKey));
+
+  // Initialize Google Maps Renderer to the latest version to avoid legacy warnings
+  final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;
+  if (mapsImplementation is GoogleMapsFlutterAndroid) {
+    mapsImplementation.useAndroidViewSurface = true;
+    mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);
+  }
+
+  final prefs = await SharedPreferences.getInstance();
+  final savedTheme = prefs.getString('selected_theme') ?? 'Smart Pal';
+  runApp(MyApp(key: myAppKey, initialTheme: savedTheme));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final String initialTheme;
+  const MyApp({super.key, this.initialTheme = 'Smart Pal'});
 
   @override
   State<MyApp> createState() => MyAppState();
 }
 
 class MyAppState extends State<MyApp> {
-  String _currentTheme = 'Picnic Pal'; // Default theme
+  late String _currentTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTheme = widget.initialTheme;
+  }
 
   // Public getter for the current theme name
   String get currentThemeName => _currentTheme;
 
-  void changeTheme(String themeName) {
+  Future<void> changeTheme(String themeName) async {
     setState(() {
       _currentTheme = themeName;
     });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_theme', themeName);
   }
 
   @override
@@ -86,26 +111,26 @@ class MyAppState extends State<MyApp> {
 
     // The new "Origin" theme
     final originTheme = ThemeData(
-      brightness: Brightness.light, // This is now a light theme
-      scaffoldBackgroundColor: const Color(0xFFFFFFFF), // Pure white background
-      primaryColor: const Color(0xFF8F857D), // Soft brown for primary text and icons
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFDECCB7), // Light beige background
+      primaryColor: const Color(0xFF433633), // Main dark brown color
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF8F857D), // Main interactive color (buttons, icons)
-        onPrimary: Colors.white, // White text on soft brown buttons
-        surface: Color(0xFFFAFAFA), // A very light off-white for cards to distinguish them
-        onSurface: Color(0xFF433633), // A darker brown for text on cards for readability
-        secondary: Color(0xFFFAFAFA), // Surfaces for input fields, etc.
+        primary: Color(0xFF433633), // Main interactive color (buttons, icons)
+        onPrimary: Colors.white, // White text on dark brown buttons for good contrast
+        surface: Color(0xFFEFE5D8), // A lighter beige for cards
+        onSurface: Color(0xFF433633), // Dark brown text on surfaces
+        secondary: Color(0xFFEFE5D8), // Surfaces for input fields, etc.
         onSecondary: Color(0xFF433633), // Text on secondary surfaces
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFFFFFFF), // Match the white background
+        backgroundColor: Color(0xFFDECCB7), // Match the background
         elevation: 0,
-        iconTheme: IconThemeData(color: Color(0xFF433633)), // Use the darker brown for better contrast
+        iconTheme: IconThemeData(color: Color(0xFF433633)), // Use the text color for icons
       ),
     );
 
     final Map<String, ThemeData> themes = {
-      'Picnic Pal': lightTheme,
+      'Smart Pal': lightTheme,
       'Dark': darkTheme,
       'Light': originTheme, // Renamed "Origin" to "Light"
     };
@@ -133,7 +158,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
-  String fullText = "Picnic Pal";
+  String fullText = "Smart Pal";
   String displayedText = "";
   int _charIndex = 0;
 
@@ -149,6 +174,8 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
     _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.elasticInOut),
     );
+
+    _requestAllPermissions();
 
     Timer.periodic(const Duration(milliseconds: 200), (timer) {
       if (_charIndex < fullText.length) {
@@ -168,6 +195,18 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     });
+  }
+
+  Future<void> _requestAllPermissions() async {
+    // Request all necessary permissions when the app starts
+    await [
+      Permission.location,
+      Permission.camera,
+      Permission.microphone,
+      Permission.notification,
+      Permission.photos,
+      Permission.storage,
+    ].request();
   }
 
   @override
@@ -217,7 +256,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _pages = [
       const HomeScreen(),
-      const MapScreen(),
+      const SmartPalMapScreen(),
       const EventsPage(), // This will now be correctly indexed
       const ProfileScreen(),
     ];
@@ -430,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         title: Text(
-          'PicnicPal',
+          'Smart Pal',
           style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -468,18 +507,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   runSpacing: 24.0, // Vertical space between rows
                   children: [
                     _quickAction(Icons.celebration, 'Plan Event', () => _showPlanningOptions(context)),
-                    _quickAction(Icons.apartment_outlined, 'Rent Apartments', () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Apartment rentals coming soon!"),
-                        backgroundColor: Color(0xFFD4A017),
-                      ));
-                    }),
-                    _quickAction(Icons.hotel_outlined, 'Book Hotel', () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Hotel booking coming soon!"),
-                        backgroundColor: Color(0xFFD4A017),
-                      ));
-                    }),
+                    _quickAction(
+                        Icons.apartment_outlined, 'Rent Apartments', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RentApartmentScreen()))),
+                    _quickAction(
+                        Icons.hotel_outlined, 'Book Hotel', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookHotelScreen()))),
                     _quickAction(Icons.card_giftcard, 'Send Gift', () {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text("Gift feature coming soon!"),
@@ -643,10 +674,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _quickAction(IconData icon, String text, VoidCallback onTap) {
     final theme = Theme.of(context);
+    // Calculate a flexible width for the items to prevent overflow on smaller screens.
+    // This allows for roughly two items per row on most phone sizes.
+    final itemWidth = (MediaQuery.of(context).size.width / 2) - 48;
+
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 140, // Set a width to control the size of each item
+        width: itemWidth, // Use the calculated flexible width
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

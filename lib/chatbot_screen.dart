@@ -96,7 +96,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           id: sessionId,
           title: "New Chat",
           timestamp: DateTime.now(),
-          messages: [ChatMessage(text: "Hi! I'm your Picnic Pal AI. 🤖\nHow can I help you plan your event today?", isUser: false)]);
+          messages: [ChatMessage(text: "Hi! I'm your Smart Pal AI. 🤖\nHow can I help you plan your event today?", isUser: false)]);
     }
   }
 
@@ -174,7 +174,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           Column(
             children: [
               AppBar( // The title will now show the session title
-                title: Text('Picnic Pal AI', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                title: Text('Smart Pal AI', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
                 backgroundColor: theme.scaffoldBackgroundColor,
                 centerTitle: true,
                 elevation: 0,
@@ -213,7 +213,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
                       ),
                       const SizedBox(width: 12),
-                      Text("Picnic Pal is thinking...", style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
+                      Text("Smart Pal is thinking...", style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
                     ],
                   ),
                 ),
@@ -433,7 +433,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     // Add the system instructions as the first 'user' message in the history.
     final systemInstructions = """
-    You are Picnic Pal, an expert AI event planner. Your goal is to help users plan an event. Your personality should be friendly and helpful.
+    You are Smart Pal, an expert AI event planner. Your goal is to help users plan an event. Your personality should be friendly and helpful.
 
     **IMPORTANT**: Adapt your tone to match the user's. If they are formal, be formal. If they are casual and use emojis, feel free to be casual and use emojis too.
 

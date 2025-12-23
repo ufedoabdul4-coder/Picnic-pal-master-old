@@ -1,51 +1,35 @@
 import 'package:flutter/material.dart';
-import 'main.dart'; // To navigate to MainScreen
-import 'forgot_password_screen.dart'; // Import the new forgot password screen
-import 'signup_screen.dart'; // Import the new sign-up screen
-import 'service_provider_selection_screen.dart'; // Import the new service provider selection screen
+import 'hire_security_dashboard_screen.dart'; // Import the new dashboard
+import 'forgot_password_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class HireSecurityLoginScreen extends StatefulWidget {
+  const HireSecurityLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<HireSecurityLoginScreen> createState() => _HireSecurityLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _HireSecurityLoginScreenState extends State<HireSecurityLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isPasswordVisible = false;
-  late AnimationController _logoAnimationController;
-  late Animation<double> _logoScaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _logoAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
-
-    _logoScaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _logoAnimationController, curve: Curves.linear),
-    );
-  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _logoAnimationController.dispose();
     super.dispose();
   }
 
   void _login() {
-    // Validate the form before proceeding
     if (_formKey.currentState?.validate() ?? false) {
-      // In a real app, you would add authentication logic here.
+      // Placeholder for property manager authentication
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Hire Security login successful!...'),
+      ));
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const HireSecurityDashboardScreen()),
       );
     }
   }
@@ -55,6 +39,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('Hire Security Login', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.primary),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -64,79 +55,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // This is a placeholder for your custom logo.
-                  // You can replace this `_buildLogo()` widget with your own Image asset.
-                  _buildLogo(),
+                  Icon(Icons.security, size: 100, color: theme.colorScheme.primary),
                   const SizedBox(height: 40),
-
-                  // Email Field
                   _buildEmailField(),
                   const SizedBox(height: 20),
-
-                  // Password Field
                   _buildPasswordField(),
                   const SizedBox(height: 30),
-
-                  // Login Button
                   _buildLoginButton(),
-                  const SizedBox(height: 20),
-
-                  // Forgot Password
+                  const SizedBox(height: 8),
                   _buildForgotPasswordText(),
-
-                  // Sign Up Text
-                  _buildSignUpText(),
-                  const SizedBox(height: 10),
-
-                  // Vendor Login
-                  _buildVendorLoginText(),
                 ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLogo() {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        ScaleTransition(
-          scale: _logoScaleAnimation,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.primary.withAlpha(38),
-                  blurRadius: 25,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: CircleAvatar(
-              radius: 60,
-              backgroundColor: theme.colorScheme.surface,
-              child: Icon(
-                Icons.smart_toy,
-                size: 80,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          "Smart Pal",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-      ],
     );
   }
 
@@ -147,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       keyboardType: TextInputType.emailAddress,
       style: TextStyle(color: theme.colorScheme.onSecondary),
       decoration: InputDecoration(
-        hintText: 'Email',
+        hintText: 'Email or Security ID',
         hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(179)),
         prefixIcon: Icon(Icons.email_outlined, color: theme.colorScheme.primary),
         filled: true,
@@ -156,10 +89,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Please enter your email';
-        }
-        if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
-          return 'Please enter a valid email address';
+          return 'Please enter your email or Security ID';
         }
         return null;
       },
@@ -207,28 +137,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         ),
         child: const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
-    );
-  }
-
-  Widget _buildSignUpText() {
-    return TextButton(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SignUpScreen()),
-        );
-      },
-      child: Text("Don't have an account? Sign Up", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
-    );
-  }
-
-  Widget _buildVendorLoginText() {
-    return TextButton(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ServiceProviderSelectionScreen()),
-        );
-      },
-      child: Text("Are you a service provider? Login here", style: TextStyle(color: Theme.of(context).colorScheme.primary)),
     );
   }
 

@@ -17,7 +17,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     defaultConfig {
-        applicationId = "com.picnicpal.app"
+        applicationId = "com.smartpal.app"
         minSdk = 28
         targetSdk = 36
         versionCode = flutter.versionCode
@@ -25,12 +25,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
 
     signingConfigs {

@@ -240,10 +240,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildThemeSelector(BuildContext context) {
     final theme = Theme.of(context);
     // Access the current theme name from MyAppState via the global key
-    final currentThemeName = myAppKey.currentState?.currentThemeName ?? 'Picnic Pal';
+    final currentThemeName = myAppKey.currentState?.currentThemeName ?? 'Smart Pal';
     
     // The list of available theme names. This should match the keys in MyAppState's `themes` map.
-    final List<String> themeNames = ['Picnic Pal', 'Dark', 'Light'];
+    final List<String> themeNames = ['Smart Pal', 'Dark', 'Light'];
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),

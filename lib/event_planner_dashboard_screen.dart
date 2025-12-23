@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart'; // Import the login screen for logout navigation
 import 'package:intl/intl.dart'; // Import for date and number formatting
 import 'revenue_details_screen.dart'; // Import the new revenue details screen
+import 'event_detail_screen.dart'; // Import the new event detail screen
 
 class EventPlannerDashboardScreen extends StatefulWidget {
   const EventPlannerDashboardScreen({super.key});
@@ -69,90 +70,428 @@ class _EventPlannerDashboardScreenState extends State<EventPlannerDashboardScree
   }
 }
 
-class EventPlannerHomeTab extends StatelessWidget {
+class EventPlannerHomeTab extends StatefulWidget {
   const EventPlannerHomeTab({super.key});
+
+  @override
+  State<EventPlannerHomeTab> createState() => _EventPlannerHomeTabState();
+}
+
+class _EventPlannerHomeTabState extends State<EventPlannerHomeTab> {
+  final ScrollController _scrollController = ScrollController();
+  bool _isRefreshing = false;
+
+  // Mock data for metrics
+  final List<Map<String, dynamic>> _metricsData = [
+    {
+      "title": "Active Events",
+      "value": "12",
+      "icon": Icons.event,
+      "color": const Color(0xFF3498DB),
+      "details": {"Weddings": 5, "Corporate": 4, "Social": 3},
+    },
+    {
+      "title": "Upcoming Deadlines",
+      "value": "8",
+      "icon": Icons.schedule,
+      "color": const Color(0xFFF39C12),
+      "details": {"This Week": 3, "Next Week": 5},
+    },
+    {
+      "title": "This Month's Revenue",
+      "value": "\$45,200",
+      "icon": Icons.attach_money,
+      "color": const Color(0xFF27AE60),
+      "details": {"Completed": "\$32,000", "Pending": "\$13,200"},
+    },
+    {
+      "title": "Pending Tasks",
+      "value": "24",
+      "icon": Icons.task_alt,
+      "color": const Color(0xFFE74C3C),
+      "details": {"High Priority": 8, "Medium Priority": 10, "Low Priority": 6},
+    },
+  ];
+
+  // Mock data for recent events
+  final List<Map<String, dynamic>> _recentEvents = [
+    {
+      "id": 1,
+      "clientName": "Sarah Johnson",
+      "eventType": "Wedding",
+      "eventDate": "2025-01-15",
+      "status": "In Progress",
+      "progress": 0.75,
+      "statusColor": const Color(0xFF3498DB),
+      "venue": "Grand Ballroom Hotel",
+      "budget": "\$35,000",
+      "image": "assets/images/event_weddings.jpg", // Using local asset
+    },
+    {
+      "id": 2,
+      "clientName": "Tech Corp Inc.",
+      "eventType": "Corporate Conference",
+      "eventDate": "2025-01-22",
+      "status": "Planning",
+      "progress": 0.45,
+      "statusColor": const Color(0xFFF39C12),
+      "venue": "Convention Center",
+      "budget": "\$50,000",
+      "image": "assets/images/event_picnic.jpg", // Using local asset
+    },
+    {
+      "id": 3,
+      "clientName": "Michael Chen",
+      "eventType": "Birthday Party",
+      "eventDate": "2025-01-18",
+      "status": "Confirmed",
+      "progress": 0.90,
+      "statusColor": const Color(0xFF27AE60),
+      "venue": "Garden Terrace",
+      "budget": "\$8,500",
+      "image": "assets/images/millennium_park.jpg", // Using local asset
+    },
+    {
+      "id": 4,
+      "clientName": "Anderson & Partners",
+      "eventType": "Product Launch",
+      "eventDate": "2025-02-05",
+      "status": "Initial Contact",
+      "progress": 0.20,
+      "statusColor": const Color(0xFF7F8C8D),
+      "venue": "Downtown Gallery",
+      "budget": "\$28,000",
+      "image": "assets/images/central_park.jpg", // Using local asset
+    },
+  ];
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isRefreshing = true);
+    // Simulate data refresh
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+    }
+  }
+
+  void _showMetricDetails(BuildContext context, Map<String, dynamic> metric) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (metric["color"] as Color).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    metric["icon"] as IconData,
+                    color: metric["color"] as Color,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    metric["title"] as String,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "Breakdown",
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...(metric["details"] as Map<String, dynamic>).entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(entry.key, style: theme.textTheme.bodyLarge),
+                    Text(
+                      entry.value.toString(),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Image.asset(
-          'assets/picnic_basket_logo.png', // Your logo asset
-          height: 40,
-          errorBuilder: (context, error, stackTrace) => Text('PicnicPal', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+      backgroundColor: theme.colorScheme.surface,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          color: theme.colorScheme.primary,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Greeting Header
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Good Morning,",
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                              Text(
+                                "Jessica",
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Stack(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.notifications_outlined),
+                                onPressed: () {},
+                              ),
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Text(
+                                    "3",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Metrics Cards
+                    SizedBox(
+                      height: 160,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _metricsData.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final metric = _metricsData[index];
+                          return GestureDetector(
+                            onLongPress: () => _showMetricDetails(context, metric),
+                            child: _MetricsCardWidget(
+                              title: metric["title"] as String,
+                              value: metric["value"] as String,
+                              icon: metric["icon"] as IconData,
+                              color: metric["color"] as Color,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Recent Events Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Recent Events",
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              // Navigate to full event list
+                            },
+                            child: Text(
+                              "View All",
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              // Recent Events List
+              SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final event = _recentEvents[index];
+                  return _RecentEventsWidget(
+                    event: event,
+                    onEdit: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => EventDetailScreen(event: event)),
+                      );
+                    },
+                    onViewTimeline: () {
+                      // View timeline
+                    },
+                    onContactClient: () {
+                      // Contact client
+                    },
+                    onArchive: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Event archived: ${event["clientName"]}'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  );
+                }, childCount: _recentEvents.length),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
         ),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.notifications_outlined, color: theme.colorScheme.onSurface),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notifications coming soon!')));
-            },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // Navigate to new event
+        },
+        icon: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+        label: Text(
+          'New Event',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: theme.colorScheme.primary,
+      ),
+    );
+  }
+}
+
+class _MetricsCardWidget extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MetricsCardWidget({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _SummaryCard(
-                  title: 'Revenue (Month)',
-                  value: '£1,250',
-                  icon: Icons.attach_money,
-                  color: Colors.green,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RevenueDetailsScreen())),
+              Text(
+                value,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _SummaryCard(
-                  title: 'New Bookings',
-                  value: '8',
-                  icon: Icons.calendar_today_outlined,
-                  color: Colors.blue,
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigating to Bookings...'))),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
-          ),
-          const SizedBox(height: 24),
-          Text('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-          const SizedBox(height: 12),
-          Card(
-            color: theme.colorScheme.surface,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              leading: Icon(Icons.fact_check_outlined, color: theme.colorScheme.primary),
-              title: Text('New Booking: "Lakeside Picnic"', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
-              subtitle: Text('For this Saturday, 2:00 PM', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
-            ),
-          ),
-          Card(
-            color: theme.colorScheme.surface,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              leading: Icon(Icons.rate_review_outlined, color: theme.colorScheme.primary),
-              title: Text('New Review: 4.5 Stars', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
-              subtitle: Text('From user "Alex Ray"', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
-            ),
-          ),
-          Card(
-            color: theme.colorScheme.surface,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              leading: Icon(Icons.question_answer_outlined, color: theme.colorScheme.primary),
-              title: Text('New Message', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
-              subtitle: Text('Regarding "Garden Party" availability', style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179))),
-            ),
           ),
         ],
       ),
@@ -160,40 +499,145 @@ class EventPlannerHomeTab extends StatelessWidget {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
+class _RecentEventsWidget extends StatelessWidget {
+  final Map<String, dynamic> event;
+  final VoidCallback onEdit;
+  final VoidCallback onViewTimeline;
+  final VoidCallback onContactClient;
+  final VoidCallback onArchive;
 
-  const _SummaryCard({required this.title, required this.value, required this.icon, required this.color, this.onTap});
+  const _RecentEventsWidget({
+    required this.event,
+    required this.onEdit,
+    required this.onViewTimeline,
+    required this.onContactClient,
+    required this.onArchive,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        color: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 12),
-              Text(title, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(179), fontSize: 14)),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    event["image"],
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image, color: Colors.grey),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event["eventType"],
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        event["clientName"],
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (event["statusColor"] as Color).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    event["status"],
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: event["statusColor"] as Color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildInfoItem(context, Icons.calendar_today, event["eventDate"]),
+                _buildInfoItem(context, Icons.location_on, event["venue"]),
+                _buildInfoItem(context, Icons.attach_money, event["budget"]),
+              ],
+            ),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: event["progress"],
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(event["statusColor"]),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: onContactClient,
+                  icon: const Icon(Icons.mail_outline, size: 18),
+                  label: const Text("Contact"),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: onViewTimeline,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text("Timeline"),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoItem(BuildContext context, IconData icon, String text) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -359,16 +803,499 @@ class EventPlannerServicesTab extends StatelessWidget {
   }
 }
 
-class EventPlannerBookingsTab extends StatelessWidget {
+class EventPlannerBookingsTab extends StatefulWidget {
   const EventPlannerBookingsTab({super.key});
+
+  @override
+  State<EventPlannerBookingsTab> createState() => _EventPlannerBookingsTabState();
+}
+
+class _EventPlannerBookingsTabState extends State<EventPlannerBookingsTab> {
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  String _sortBy = 'Date';
+
+  Map<String, dynamic> _activeFilters = {
+    'status': <String>[],
+    'eventType': <String>[],
+    'dateRange': null,
+  };
+
+  List<Map<String, dynamic>> _allEvents = [];
+  List<Map<String, dynamic>> _filteredEvents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMockData();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _loadMockData() {
+    _allEvents = [
+      {
+        "id": 1,
+        "clientName": "Sarah Johnson",
+        "eventType": "Wedding",
+        "date": "Dec 28, 2025",
+        "venue": "Grand Ballroom, Plaza Hotel",
+        "status": "Upcoming",
+        "budget": "\$45,000",
+        "guests": 200,
+        "image": "assets/images/event_weddings.jpg",
+      },
+      {
+        "id": 2,
+        "clientName": "Tech Corp Inc",
+        "eventType": "Corporate",
+        "date": "Jan 15, 2026",
+        "venue": "Convention Center",
+        "status": "In Progress",
+        "budget": "\$75,000",
+        "guests": 500,
+        "image": "assets/images/event_picnic.jpg",
+      },
+      {
+        "id": 3,
+        "clientName": "Michael Chen",
+        "eventType": "Birthday",
+        "date": "Dec 20, 2025",
+        "venue": "Sunset Garden Restaurant",
+        "status": "Upcoming",
+        "budget": "\$8,500",
+        "guests": 75,
+        "image": "assets/images/millennium_park.jpg",
+      },
+      {
+        "id": 4,
+        "clientName": "Global Summit 2025",
+        "eventType": "Conference",
+        "date": "Nov 10, 2025",
+        "venue": "International Conference Hall",
+        "status": "Completed",
+        "budget": "\$120,000",
+        "guests": 1000,
+        "image": "assets/images/central_park.jpg",
+      },
+      {
+        "id": 5,
+        "clientName": "Emma Rodriguez",
+        "eventType": "Wedding",
+        "date": "Feb 14, 2026",
+        "venue": "Beachside Resort",
+        "status": "Upcoming",
+        "budget": "\$55,000",
+        "guests": 150,
+        "image": "assets/images/event_weddings.jpg",
+      },
+    ];
+
+    setState(() {
+      _filteredEvents = List.from(_allEvents);
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore) {
+        _loadMoreEvents();
+      }
+    }
+  }
+
+  Future<void> _loadMoreEvents() async {
+    setState(() => _isLoadingMore = true);
+    await Future.delayed(const Duration(seconds: 1));
+    setState(() => _isLoadingMore = false);
+  }
+
+  Future<void> _refreshEvents() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _isLoading = false;
+      _filteredEvents = List.from(_allEvents);
+    });
+  }
+
+  void _filterEvents() {
+    List<Map<String, dynamic>> filtered = List.from(_allEvents);
+
+    // Apply search filter
+    if (_searchController.text.isNotEmpty) {
+      final searchLower = _searchController.text.toLowerCase();
+      filtered = filtered.where((event) {
+        return (event['clientName'] as String).toLowerCase().contains(searchLower) ||
+            (event['eventType'] as String).toLowerCase().contains(searchLower) ||
+            (event['venue'] as String).toLowerCase().contains(searchLower);
+      }).toList();
+    }
+
+    // Apply sorting
+    _sortEvents(filtered);
+
+    setState(() {
+      _filteredEvents = filtered;
+    });
+  }
+
+  void _sortEvents(List<Map<String, dynamic>> events) {
+    switch (_sortBy) {
+      case 'Date':
+        events.sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+        break;
+      case 'Client Name':
+        events.sort((a, b) => (a['clientName'] as String).compareTo(b['clientName'] as String));
+        break;
+      case 'Status':
+        events.sort((a, b) => (a['status'] as String).compareTo(b['status'] as String));
+        break;
+      case 'Budget':
+        events.sort((a, b) => (a['budget'] as String).compareTo(b['budget'] as String));
+        break;
+    }
+  }
+
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => _buildSortOptions(),
+    );
+  }
+
+  Widget _buildSortOptions() {
+    final theme = Theme.of(context);
+    final sortOptions = ['Date', 'Client Name', 'Status', 'Budget'];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'Sort By',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ...sortOptions.map(
+            (option) => RadioListTile<String>(
+              title: Text(option),
+              value: option,
+              groupValue: _sortBy,
+              onChanged: (value) {
+                setState(() {
+                  _sortBy = value!;
+                  _filterEvents();
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Bookings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor, centerTitle: true,
+        title: Text(
+          'Bookings',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        centerTitle: true,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.sort, color: colorScheme.onSurface),
+            onPressed: _showSortOptions,
+            tooltip: 'Sort',
+          ),
+        ],
       ),
-      body: const Center(child: Text('Your bookings will appear here.')),
+      body: Column(
+        children: [
+          // Search bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  offset: const Offset(0, 2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => _filterEvents(),
+              decoration: InputDecoration(
+                hintText: 'Search events, clients...',
+                prefixIcon: Icon(Icons.search, color: colorScheme.onSurface.withOpacity(0.6)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: colorScheme.onSurface.withOpacity(0.6)),
+                        onPressed: () {
+                          _searchController.clear();
+                          _filterEvents();
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ),
+          // Event list
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredEvents.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.event_busy, size: 64, color: colorScheme.onSurface.withOpacity(0.4)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No events found',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _refreshEvents,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredEvents.length + (_isLoadingMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == _filteredEvents.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+
+                            final event = _filteredEvents[index];
+                            return _EventCardWidget(
+                              event: event,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => EventDetailScreen(event: event)),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Create new event')));
+        },
+        icon: Icon(Icons.add, color: colorScheme.onPrimary),
+        label: Text('Add Event', style: TextStyle(color: colorScheme.onPrimary)),
+        backgroundColor: colorScheme.primary,
+      ),
+    );
+  }
+}
+
+class _EventCardWidget extends StatelessWidget {
+  final Map<String, dynamic> event;
+  final VoidCallback onTap;
+
+  const _EventCardWidget({required this.event, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    Color statusColor;
+    switch (event['status']) {
+      case 'Upcoming':
+        statusColor = Colors.blue;
+        break;
+      case 'In Progress':
+        statusColor = Colors.orange;
+        break;
+      case 'Completed':
+        statusColor = Colors.green;
+        break;
+      case 'Cancelled':
+        statusColor = Colors.red;
+        break;
+      default:
+        statusColor = Colors.grey;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image and Status
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: Image.asset(
+                    event['image'],
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 150,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      event['status'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event['eventType'],
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        event['budget'],
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    event['clientName'],
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: colorScheme.onSurface.withOpacity(0.5)),
+                      const SizedBox(width: 4),
+                      Text(
+                        event['date'],
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(Icons.people, size: 16, color: colorScheme.onSurface.withOpacity(0.5)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${event['guests']} Guests',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, size: 16, color: colorScheme.onSurface.withOpacity(0.5)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event['venue'],
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
