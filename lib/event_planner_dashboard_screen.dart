@@ -386,6 +386,7 @@ class _EventPlannerHomeTabState extends State<EventPlannerHomeTab> {
                   return _RecentEventsWidget(
                     event: event,
                     onEdit: () {
+                      // Navigate to edit
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => EventDetailScreen(event: event)),
@@ -1023,7 +1024,7 @@ class _EventPlannerBookingsTabState extends State<EventPlannerBookingsTab> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Bookings',
+          'Events',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
@@ -1032,13 +1033,6 @@ class _EventPlannerBookingsTabState extends State<EventPlannerBookingsTab> {
         backgroundColor: theme.scaffoldBackgroundColor,
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.sort, color: colorScheme.onSurface),
-            onPressed: _showSortOptions,
-            tooltip: 'Sort',
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -1055,29 +1049,48 @@ class _EventPlannerBookingsTabState extends State<EventPlannerBookingsTab> {
                 ),
               ],
             ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => _filterEvents(),
-              decoration: InputDecoration(
-                hintText: 'Search events, clients...',
-                prefixIcon: Icon(Icons.search, color: colorScheme.onSurface.withOpacity(0.6)),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: colorScheme.onSurface.withOpacity(0.6)),
-                        onPressed: () {
-                          _searchController.clear();
-                          _filterEvents();
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => _filterEvents(),
+                    decoration: InputDecoration(
+                      hintText: 'Search events, clients...',
+                      prefixIcon: Icon(Icons.search, color: colorScheme.onSurface.withOpacity(0.6)),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear, color: colorScheme.onSurface.withOpacity(0.6)),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterEvents();
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: colorScheme.surface.withOpacity(0.5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
+                const SizedBox(width: 12),
+                InkWell(
+                  onTap: _showSortOptions,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.filter_list, color: colorScheme.onPrimary, size: 24),
+                  ),
+                ),
+              ],
             ),
           ),
           // Event list
@@ -1118,6 +1131,7 @@ class _EventPlannerBookingsTabState extends State<EventPlannerBookingsTab> {
                             return _EventCardWidget(
                               event: event,
                               onTap: () {
+                                // Navigate to details
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => EventDetailScreen(event: event)),
@@ -1156,10 +1170,10 @@ class _EventCardWidget extends StatelessWidget {
     Color statusColor;
     switch (event['status']) {
       case 'Upcoming':
-        statusColor = Colors.blue;
+        statusColor = Colors.blueAccent;
         break;
       case 'In Progress':
-        statusColor = Colors.orange;
+        statusColor = Colors.orangeAccent;
         break;
       case 'Completed':
         statusColor = Colors.green;
@@ -1171,129 +1185,136 @@ class _EventCardWidget extends StatelessWidget {
         statusColor = Colors.grey;
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image and Status
-            Stack(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Left-aligned Thumbnail
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: BorderRadius.circular(12),
                   child: Image.asset(
                     event['image'],
-                    height: 150,
-                    width: double.infinity,
+                    width: 80,
+                    height: 80,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
-                      height: 150,
+                      width: 80,
+                      height: 80,
                       color: Colors.grey[300],
-                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                      child: const Icon(Icons.image, size: 30, color: Colors.grey),
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      event['status'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                const SizedBox(width: 16),
+                // Details Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Name and Status
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              event['clientName'],
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          // Status Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              event['status'],
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      // Event Type Label
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.secondary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          event['eventType'],
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Date
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurface.withOpacity(0.5)),
+                          const SizedBox(width: 4),
+                          Text(
+                            event['date'],
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Location
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, size: 14, color: colorScheme.onSurface.withOpacity(0.5)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              event['venue'],
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          event['eventType'],
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        event['budget'],
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    event['clientName'],
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 16, color: colorScheme.onSurface.withOpacity(0.5)),
-                      const SizedBox(width: 4),
-                      Text(
-                        event['date'],
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.7),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.people, size: 16, color: colorScheme.onSurface.withOpacity(0.5)),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${event['guests']} Guests',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 16, color: colorScheme.onSurface.withOpacity(0.5)),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          event['venue'],
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

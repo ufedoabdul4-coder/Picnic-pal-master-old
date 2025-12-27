@@ -24,12 +24,22 @@ class Venue {
   final String imageUrl;
   final String status;
   final List<EventType> availableEvents;
+  final double rating;
+  final String location;
+  final double? latitude;
+  final double? longitude;
+  final double? distanceFromUser;
 
   Venue({
     required this.name,
     required this.imageUrl,
     required this.status,
-    required this.availableEvents,
+    this.availableEvents = const [],
+    this.rating = 0.0,
+    this.location = '',
+    this.latitude,
+    this.longitude,
+    this.distanceFromUser,
   });
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'venue_list_screen.dart';
 
 class EventSubtypeScreen extends StatefulWidget {
   final String eventType;
@@ -34,6 +35,13 @@ class _EventSubtypeScreenState extends State<EventSubtypeScreen> {
       'Holiday Party',
       'Graduation Party',
       'Themed Costume Party',
+    ],
+    'Casual outing': [
+      'Coffee Catch-up',
+      'Movie Night',
+      'Game Night',
+      'Brunch Date',
+      'Shopping Trip',
     ],
     // Add other main event types and their subtypes here
   };
@@ -78,10 +86,11 @@ class _EventSubtypeScreenState extends State<EventSubtypeScreen> {
               title: Text(subtype),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                // TODO: Implement what happens when a user selects a specific event.
-                // For now, it just prints the selection.
-                print('Selected: $subtype');
-                Navigator.of(context).pop(); // Go back to the previous screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => VenueListScreen(eventType: subtype)),
+                );
               },
             ),
           );

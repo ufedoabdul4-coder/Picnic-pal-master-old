@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'event_subtype_screen.dart'; // Import the new subtype screen
+import 'venue_list_screen.dart';
 
 class EventTypeScreen extends StatelessWidget {
   const EventTypeScreen({super.key});
@@ -15,6 +16,7 @@ class EventTypeScreen extends StatelessWidget {
       {'name': 'Party', 'icon': Icons.cake_outlined, 'hasSubtypes': true},
       {'name': 'Wedding', 'icon': Icons.favorite_border, 'hasSubtypes': false},
       {'name': 'Corporate Event', 'icon': Icons.business_center_outlined, 'hasSubtypes': false},
+      {'name': 'Casual outing', 'icon': Icons.people_outlined, 'hasSubtypes': true},
       {'name': 'Other', 'icon': Icons.more_horiz_outlined, 'hasSubtypes': false},
     ];
 
@@ -67,10 +69,9 @@ class EventTypeScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => EventSubtypeScreen(eventType: eventName)),
                   );
                 } else {
-                  // TODO: Decide where to navigate for events without subtypes.
-                  // For now, it just shows a temporary message.
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$eventName selected! Venue selection coming soon.')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => VenueListScreen(eventType: eventName)),
                   );
                 }
               },

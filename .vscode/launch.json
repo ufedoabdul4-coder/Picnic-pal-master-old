@@ -8,8 +8,9 @@
             "deviceId": "",
             "args": [
                 // IMPORTANT: Paste your new API key from Google AI Studio here, without any < > brackets.
-            "--dart-define=GEMINI_API_KEY=AIzaSyDw3zsxBJEq8XLM2TMwwFIhYMQ8bG2VRAk"
-            ]
+            "--dart-define=GEMINI_API_KEY=AIzaSyDw3zsxBJEq8XLM2TMwwFIhYMQ8bG2VRAk",
+           "-v"
+        ]
         }
     ]
 }
