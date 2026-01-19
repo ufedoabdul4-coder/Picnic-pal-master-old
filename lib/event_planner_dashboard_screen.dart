@@ -137,7 +137,7 @@ class _EventPlannerHomeTabState extends State<EventPlannerHomeTab> {
       "statusColor": const Color(0xFFF39C12),
       "venue": "Convention Center",
       "budget": "\$50,000",
-      "image": "assets/images/event_picnic.jpg", // Using local asset
+      "image": "assets/images/event        _picnic.jpg", // Using local asset
     },
     {
       "id": 3,
