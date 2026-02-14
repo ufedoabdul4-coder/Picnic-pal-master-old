@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'add_hotel_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_screen.dart';
 
 class HotelRoom {
   final String id;
@@ -133,9 +135,14 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: appBarTitle,
+        title: Text(
+          'Hotel Manager Dashboard',
+          style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: theme.scaffoldBackgroundColor,
         centerTitle: centerTitle,
         elevation: 0,
+        centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.primary),
         actions: appBarActions,
       ),
@@ -152,6 +159,19 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.bed_outlined), activeIcon: Icon(Icons.bed), label: 'Rooms'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
         ],
       ),
     );
@@ -214,6 +234,9 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
         ),
         const SizedBox(height: 16),
         Row(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Expanded(
               child: SizedBox(
@@ -229,6 +252,11 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                   ),
                 ),
               ),
+            Icon(Icons.hotel_outlined, size: 80, color: theme.colorScheme.primary),
+            const SizedBox(height: 20),
+            Text(
+              'Welcome, Hotel Manager!',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -245,6 +273,10 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                   ),
                 ),
               ),
+            const SizedBox(height: 10),
+            Text(
+              'Manage your bookings and rooms here.',
+              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
             ),
           ],
         ),
