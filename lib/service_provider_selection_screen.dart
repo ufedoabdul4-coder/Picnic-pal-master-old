@@ -1,11 +1,52 @@
 import 'package:flutter/material.dart';
-import 'event_planner_login_screen.dart'; // Placeholder screen
-import 'hotel_manager_login_screen.dart';
-import 'hire_security_login_screen.dart';
-import 'apartment_manager_login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'main.dart';
+import 'apartment_manager_dashboard_screen.dart';
+import 'hotel_manager_dashboard_screen.dart';
 
 class ServiceProviderSelectionScreen extends StatelessWidget {
   const ServiceProviderSelectionScreen({super.key});
+
+  Future<void> _selectRole(BuildContext context, String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_role', role);
+    await prefs.setBool('has_seen_provider_prompt', true);
+    await prefs.setBool('is_service_provider', true);
+
+    // Update Supabase profile so this persists across devices
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        await Supabase.instance.client.from('profiles').update({'role': role}).eq('id', user.id);
+      } catch (e) {
+        debugPrint("Error updating role in Supabase: $e");
+      }
+    }
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Role switched to $role")),
+    );
+
+    if (role == 'Apartment Manager') {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ApartmentManagerDashboardScreen()),
+        (route) => false,
+      );
+    } else if (role == 'Hotel Manager') {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HotelManagerDashboardScreen()),
+        (route) => false,
+      );
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +79,7 @@ class ServiceProviderSelectionScreen extends StatelessWidget {
                   context,
                   icon: Icons.celebration_outlined,
                   label: 'Event Planner',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EventPlannerLoginScreen())),
+                  onTap: () => _selectRole(context, 'Event Planner'),
                 ),
               ),
               // Middle row
@@ -49,7 +90,7 @@ class ServiceProviderSelectionScreen extends StatelessWidget {
                   context,
                   icon: Icons.hotel_outlined,
                   label: 'Hotel Manager',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HotelManagerLoginScreen())),
+                  onTap: () => _selectRole(context, 'Hotel Manager'),
                 ),
               ),
               Positioned(
@@ -59,7 +100,7 @@ class ServiceProviderSelectionScreen extends StatelessWidget {
                   context,
                   icon: Icons.apartment_outlined,
                   label: 'Apartment Manager',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ApartmentManagerLoginScreen())),
+                  onTap: () => _selectRole(context, 'Apartment Manager'),
                 ),
               ),
               // Bottom row
@@ -70,7 +111,7 @@ class ServiceProviderSelectionScreen extends StatelessWidget {
                   context,
                   icon: Icons.security,
                   label: 'Hire security',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HireSecurityLoginScreen())),
+                  onTap: () => _selectRole(context, 'Security'),
                 ),
               ),
               Positioned(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart'; // Import main to access the global key
 import 'event_provider.dart'; // To get event data
 import 'saved_venue_provider.dart'; // To get saved venue data
@@ -19,19 +20,39 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
-  String _userName = "Loading...";
-  String _userEmail = "Loading...";
-  String _joinDateString = "Loading...";
+  String _userName = "User";
+  String _userEmail = "";
+  String _joinDateString = "";
 
   @override
   void initState() {
     super.initState();
+    _initializeUserDisplay();
     _loadProfileImage();
     _loadUserData();
-    _loadJoinDate();
     // Add listeners to update the UI when data changes
     eventProvider.addListener(_onDataChanged);
     savedVenueProvider.addListener(_onDataChanged);
+  }
+
+  void _initializeUserDisplay() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      _userEmail = user.email ?? 'No Email';
+      
+      String fullName = "User";
+      final metadata = user.userMetadata;
+      if (metadata != null) {
+        fullName = metadata['first_name'] ?? metadata['full_name'] ?? metadata['name'] ?? "User";
+      }
+      
+      if (fullName != "User" && fullName.isNotEmpty) {
+        _userName = fullName.split(' ').first;
+      }
+
+      final createdAt = DateTime.parse(user.createdAt);
+      _joinDateString = "Member since ${DateFormat('MMMM yyyy').format(createdAt)}";
+    }
   }
 
   @override
@@ -52,28 +73,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    String fullName = "User";
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('first_name, full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+      
+      if (data != null) {
+        fullName = data['first_name'] ?? data['full_name'] ?? "User";
+      } else {
+        // Fallback to user metadata if profile data is missing
+        final metadata = user.userMetadata;
+        if (metadata != null) {
+          fullName = metadata['first_name'] ?? metadata['full_name'] ?? metadata['name'] ?? "User";
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
+    }
+
+    // Extract first name
+    if (fullName != "User" && fullName.isNotEmpty) {
+      fullName = fullName.split(' ').first;
+    }
+
     if (mounted) {
       setState(() {
-        _userName = prefs.getString('user_name') ?? 'Jamal-din';
-        _userEmail = prefs.getString('user_email') ?? 'samuel@example.com';
+        _userName = fullName;
+        _userEmail = user.email ?? 'No Email';
       });
-    }
-  }
-
-  Future<void> _loadJoinDate() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? joinDate = prefs.getString('join_date');
-
-    if (joinDate == null) {
-      // If it's the first time, set the date and save it.
-      final now = DateTime.now();
-      joinDate = DateFormat('MMMM yyyy').format(now); // e.g., "January 2024"
-      await prefs.setString('join_date', joinDate);
-    }
-
-    if (mounted) {
-      setState(() => _joinDateString = "Member since $joinDate");
     }
   }
 

@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'main.dart'; // To navigate to MainScreen
-import 'forgot_password_screen.dart'; // Import the new forgot password screen
-import 'signup_screen.dart'; // Import the new sign-up screen
-import 'service_provider_selection_screen.dart'; // Import the new service provider selection screen
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'main.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,42 +11,56 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
   bool _isPasswordVisible = false;
-  late AnimationController _logoAnimationController;
-  late Animation<double> _logoScaleAnimation;
+  late final StreamSubscription<AuthState> _authStateSubscription;
 
   @override
   void initState() {
     super.initState();
-    _logoAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
-
-    _logoScaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _logoAnimationController, curve: Curves.linear),
-    );
+    // Listen to auth state changes. This will automatically redirect the user
+    // to the main screen after a successful signup, as a new session will be created.
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final Session? session = data.session;
+      if (session != null && mounted) {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
+      }
+    });
   }
 
   @override
   void dispose() {
+    _authStateSubscription.cancel();
     _emailController.dispose();
     _passwordController.dispose();
-    _logoAnimationController.dispose();
     super.dispose();
   }
 
-  void _login() {
-    // Validate the form before proceeding
-    if (_formKey.currentState?.validate() ?? false) {
-      // In a real app, you would add authentication logic here.
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
+      try {
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        if (!mounted) return;
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
+      } on AuthException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An unexpected error occurred'), backgroundColor: Colors.red));
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -55,190 +69,90 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // This is a placeholder for your custom logo.
-                  // You can replace this `_buildLogo()` widget with your own Image asset.
-                  _buildLogo(),
-                  const SizedBox(height: 40),
-
-                  // Email Field
-                  _buildEmailField(),
-                  const SizedBox(height: 20),
-
-                  // Password Field
-                  _buildPasswordField(),
-                  const SizedBox(height: 30),
-
-                  // Login Button
-                  _buildLoginButton(),
-                  const SizedBox(height: 20),
-
-                  // Forgot Password
-                  _buildForgotPasswordText(),
-
-                  // Sign Up Text
-                  _buildSignUpText(),
-                  const SizedBox(height: 10),
-
-                  // Vendor Login
-                  _buildVendorLoginText(),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        ScaleTransition(
-          scale: _logoScaleAnimation,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.primary.withAlpha(38),
-                  blurRadius: 25,
-                  spreadRadius: 5,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(Icons.lock_outline, size: 80, color: theme.colorScheme.primary),
+                const SizedBox(height: 24),
+                Text(
+                  'Welcome Back',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Login to continue',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                ),
+                const SizedBox(height: 32),
+                _buildTextField(theme, _emailController, 'Email', Icons.email),
+                const SizedBox(height: 16),
+                _buildTextField(theme, _passwordController, 'Password', Icons.lock, isPassword: true),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+                  },
+                  child: Text('Don\'t have an account? Sign Up', style: TextStyle(color: theme.colorScheme.primary)),
                 ),
               ],
             ),
-            child: CircleAvatar(
-              radius: 60,
-              backgroundColor: theme.colorScheme.surface,
-              child: Icon(
-                Icons.smart_toy,
-                size: 80,
-                color: theme.colorScheme.primary,
-              ),
-            ),
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          "Smart Pal",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildEmailField() {
-    final theme = Theme.of(context);
+  Widget _buildTextField(ThemeData theme, TextEditingController controller, String label, IconData icon, {bool isPassword = false}) {
     return TextFormField(
-      controller: _emailController,
-      keyboardType: TextInputType.emailAddress,
-      style: TextStyle(color: theme.colorScheme.onSecondary),
+      controller: controller,
+      obscureText: isPassword ? !_isPasswordVisible : false,
+      style: TextStyle(color: theme.colorScheme.onSurface),
       decoration: InputDecoration(
-        hintText: 'Email',
-        hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(179)),
-        prefixIcon: Icon(Icons.email_outlined, color: theme.colorScheme.primary),
+        labelText: label,
+        labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+        prefixIcon: Icon(icon, color: theme.colorScheme.primary),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: theme.colorScheme.primary),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              )
+            : null,
         filled: true,
         fillColor: theme.colorScheme.secondary,
+        contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Please enter your email';
-        }
-        if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
-          return 'Please enter a valid email address';
+          return 'Please enter your $label';
         }
         return null;
       },
-    );
-  }
-
-  Widget _buildPasswordField() {
-    final theme = Theme.of(context);
-    return TextFormField(
-      controller: _passwordController,
-      obscureText: !_isPasswordVisible,
-      style: TextStyle(color: theme.colorScheme.onSecondary),
-      decoration: InputDecoration(
-        hintText: 'Password',
-        hintStyle: TextStyle(color: theme.colorScheme.onSecondary.withAlpha(179)),
-        prefixIcon: Icon(Icons.lock_outline, color: theme.colorScheme.primary),
-        suffixIcon: IconButton(
-          icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility, color: theme.colorScheme.primary),
-          onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-        ),
-        filled: true,
-        fillColor: theme.colorScheme.secondary,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter your password';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildLoginButton() {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _login,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-  Widget _buildSignUpText() {
-    return TextButton(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SignUpScreen()),
-        );
-      },
-      child: Text("Don't have an account? Sign Up", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(179))),
-    );
-  }
-
-  Widget _buildVendorLoginText() {
-    return TextButton(
-      onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ServiceProviderSelectionScreen()),
-        );
-      },
-      child: Text("Are you a service provider? Login here", style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-    );
-  }
-
-  Widget _buildForgotPasswordText() {
-    return Container(
-      alignment: Alignment.centerRight,
-      child: TextButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-        child: Text("Forgot Password?", style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
-      ),
     );
   }
 }

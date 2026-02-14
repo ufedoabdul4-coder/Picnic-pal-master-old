@@ -35,7 +35,40 @@ class HotelManagerDashboardScreen extends StatefulWidget {
 
 class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScreen> {
   int _selectedIndex = 0;
-  final String _hotelName = "John's Hotel";
+  String _userName = "Manager";
+  String _userEmail = "manager@hotel.com";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    String? nameFromDb;
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('full_name') // Assuming 'full_name' from common practice
+          .eq('id', user.id)
+          .single();
+      nameFromDb = data['full_name'];
+    } catch (e) {
+      debugPrint("Could not fetch hotel manager's profile name: $e");
+    }
+
+    if (mounted) {
+      setState(() {
+        _userEmail = user.email ?? 'manager@hotel.com';
+        if (nameFromDb != null && nameFromDb.isNotEmpty) {
+          _userName = nameFromDb;
+        }
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -59,7 +92,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Welcome back,', style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6))),
-            Text(_hotelName, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+            Text(_userName, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
           ],
         );
         appBarActions = [
@@ -67,7 +100,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
               backgroundColor: theme.colorScheme.primary,
-              child: Text(_hotelName.isNotEmpty ? _hotelName[0] : 'H', style: TextStyle(color: theme.colorScheme.onPrimary)),
+              child: Text(_userName.isNotEmpty ? _userName[0].toUpperCase() : 'M', style: TextStyle(color: theme.colorScheme.onPrimary)),
             ),
           ),
         ];
@@ -115,8 +148,8 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                 child: Icon(Icons.person, size: 50, color: theme.colorScheme.onPrimary),
               ),
               const SizedBox(height: 16),
-              Text('Hotel Manager', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-              Text('manager@hotel.com', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+              Text(_userName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              Text(_userEmail, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6))),
               const SizedBox(height: 32),
               _buildProfileItem(theme, Icons.settings_outlined, 'Settings'),
               _buildProfileItem(theme, Icons.help_outline, 'Help & Support'),
@@ -135,14 +168,9 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: appBarTitle,
-        title: Text(
-          'Hotel Manager Dashboard',
-          style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: theme.scaffoldBackgroundColor,
         centerTitle: centerTitle,
         elevation: 0,
-        centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.primary),
         actions: appBarActions,
       ),
@@ -159,52 +187,48 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.bed_outlined), activeIcon: Icon(Icons.bed), label: 'Rooms'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-          ),
         ],
       ),
     );
   }
 
   Widget _buildStatsSection(ThemeData theme) {
+    // Example statistics, you can replace with real data as needed
+    int totalRooms = mockRooms.length;
+    int availableRooms = mockRooms.where((room) => room.status == 'Available').length;
+    int occupiedRooms = mockRooms.where((room) => room.status == 'Occupied').length;
+    int cleaningRooms = mockRooms.where((room) => room.status == 'Cleaning').length;
+
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(child: _buildStatCard(theme, 'Occupied', '12', Icons.person)),
-        const SizedBox(width: 12),
-        Expanded(child: _buildStatCard(theme, 'Available', '8', Icons.check_circle_outline)),
-        const SizedBox(width: 12),
-        Expanded(child: _buildStatCard(theme, 'Cleaning', '3', Icons.cleaning_services_outlined)),
+        _buildStatCard(theme, 'Total Rooms', totalRooms.toString(), Icons.meeting_room),
+        _buildStatCard(theme, 'Available', availableRooms.toString(), Icons.check_circle_outline),
+        _buildStatCard(theme, 'Occupied', occupiedRooms.toString(), Icons.hotel),
+        _buildStatCard(theme, 'Cleaning', cleaningRooms.toString(), Icons.cleaning_services),
       ],
     );
   }
 
-  Widget _buildStatCard(ThemeData theme, String label, String count, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+  Widget _buildStatCard(ThemeData theme, String label, String value, IconData icon) {
+    return Expanded(
+      child: Card(
         color: theme.colorScheme.secondary,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: theme.colorScheme.primary, size: 28),
-          const SizedBox(height: 12),
-          Text(count, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSecondary)),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSecondary.withOpacity(0.7))),
-        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: theme.colorScheme.primary, size: 28),
+              const SizedBox(height: 8),
+              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSecondary.withOpacity(0.7))),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -233,53 +257,39 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: Icon(Icons.bed, color: theme.colorScheme.onSecondary),
-                  label: Text('Add Rooms', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.secondary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
+        Row(children: [
+          Expanded(
+            child: SizedBox(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: Icon(Icons.bed, color: theme.colorScheme.onSecondary),
+                label: Text('Add Rooms', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.secondary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
                 ),
               ),
-            Icon(Icons.hotel_outlined, size: 80, color: theme.colorScheme.primary),
-            const SizedBox(height: 20),
-            Text(
-              'Welcome, Hotel Manager!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: Icon(Icons.add_a_photo, color: theme.colorScheme.onSecondary),
-                  label: Text('Upload Photos', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.secondary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: SizedBox(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: Icon(Icons.add_a_photo, color: theme.colorScheme.onSecondary),
+                label: Text('Upload Photos', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.secondary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
                 ),
               ),
-            const SizedBox(height: 10),
-            Text(
-              'Manage your bookings and rooms here.',
-              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
             ),
-          ],
-        ),
+          ),
+        ]),
       ],
     );
   }
@@ -322,7 +332,34 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
       trailing: Icon(Icons.arrow_forward_ios, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.3)),
       onTap: () {
         if (title == 'Logout') {
-           Navigator.of(context).pop();
+          showDialog<bool>(
+            context: context,
+            builder: (BuildContext dialogContext) {
+              final dialogTheme = Theme.of(dialogContext);
+              return AlertDialog(
+                backgroundColor: dialogTheme.colorScheme.surface,
+                title: Text('Logout?', style: TextStyle(color: dialogTheme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+                content: Text('Are you sure you want to logout?', style: TextStyle(color: dialogTheme.colorScheme.onSurface.withOpacity(0.8))),
+                actions: <Widget>[
+                  TextButton(
+                    child: Text('No', style: TextStyle(color: dialogTheme.colorScheme.onSurface.withOpacity(0.7))),
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    child: const Text('Yes', style: TextStyle(color: Colors.white)),
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                  ),
+                ],
+              );
+            },
+          ).then((shouldLogout) async {
+            if (shouldLogout == true && context.mounted) {
+              await Supabase.instance.client.auth.signOut();
+              Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
+            }
+          });
         }
       },
     );

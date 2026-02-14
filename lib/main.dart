@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
@@ -19,6 +20,8 @@ import 'event_type_screen.dart'; // Import the new event type screen
 import 'venue_list_screen.dart';
 import 'rent_apartment_screen.dart';
 import 'book_hotel_screen.dart';
+import 'service_provider_selection_screen.dart';
+import 'service_provider_intro_screen.dart';
 
 // Global key to access MyApp's state for theme changes from anywhere.
 final GlobalKey<MyAppState> myAppKey = GlobalKey();
@@ -27,6 +30,12 @@ void main() async {
   // This is required to ensure that Flutter's bindings are initialized
   // before any async operations are performed in main.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: 'https://zrxrtpcpvbowkzxcvdbq.supabase.co', // Replace with your actual Project URL
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyeHJ0cGNwdmJvd2t6eGN2ZGJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODUzOTksImV4cCI6MjA4NDg2MTM5OX0.WcjmbXhdVdZpWqs-iMmVRsuuOXC436NUOm02XvefT0E', // Replace with your actual Anon Key
+  );
 
   // Initialize Google Maps Renderer to the latest version to avoid legacy warnings
   final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;
@@ -189,11 +198,17 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
       }
     });
 
-    Timer(const Duration(seconds: 4), () {
+    Timer(const Duration(seconds: 4), () async {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      final session = Supabase.instance.client.auth.currentSession;
+
+      if (!mounted) return;
+      
+      if (session != null) {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
+      } else {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+      }
     });
   }
 
@@ -325,11 +340,18 @@ class _HomeScreenState extends State<HomeScreen> {
   int currentIndex = 0;
   Timer? timer;
   bool _isSearching = false;
+  bool _isServiceProvider = false;
 
   @override
   void initState() {
     super.initState();
     _fetchVenues(); // Fetch the hardcoded venues
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkServiceProviderStatus();
   }
 
   @override
@@ -349,6 +371,38 @@ class _HomeScreenState extends State<HomeScreen> {
         final descriptionLower = place.description.toLowerCase();
         return nameLower.contains(query) || descriptionLower.contains(query);
       }).toList();
+    });
+  }
+
+  Future<void> _checkServiceProviderStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isProvider = prefs.getBool('is_service_provider') ?? false;
+
+    // If not found locally (e.g., new device), check Supabase
+    if (!isProvider) {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        try {
+          final data = await Supabase.instance.client
+              .from('profiles')
+              .select('role')
+              .eq('id', user.id)
+              .maybeSingle();
+
+          if (data != null && data['role'] != 'user') {
+            isProvider = true;
+            // Sync local storage for next time
+            await prefs.setBool('is_service_provider', true);
+            await prefs.setString('user_role', data['role']);
+          }
+        } catch (e) {
+          debugPrint('Error checking provider status: $e');
+        }
+      }
+    }
+
+    setState(() {
+      _isServiceProvider = isProvider;
     });
   }
 
@@ -396,12 +450,20 @@ class _HomeScreenState extends State<HomeScreen> {
         longitude: 7.493,
       ),
     ];
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     // Filter for the "Recommended" slideshow from the hardcoded list
     final recommended = hardcodedPlaces.where((place) {
       final descLower = place.description.toLowerCase();
       return descLower.contains('picnic') || descLower.contains('park');
     }).toList();
+    try {
+      // Fetch venues listed by service providers from Supabase.
+      // This assumes you have a 'venues' table with relevant columns.
+      final response = await Supabase.instance.client.from('venues').select();
 
     setState(() {
       _allApiPlaces = hardcodedPlaces;
@@ -409,6 +471,45 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = false;
       startSlideshow();
     });
+      final List<Place> providerVenues = (response as List).map((data) {
+        return Place(
+          placeId: (data['id'] ?? '').toString(),
+          name: data['name'] ?? 'Unnamed Venue',
+          description: data['description'] ?? '',
+          // Assuming 'image_url' is the column name in your Supabase table.
+          // A fallback image is used if the URL is null.
+          photoUrl: data['image_url'] ?? 'assets/images/central_park.jpg',
+          rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+          totalRatings: 0, // This data isn't in the assumed table structure.
+          latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
+          longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
+        );
+      }).toList();
+
+      if (providerVenues.isEmpty && mounted) {
+        setState(() {
+          _errorMessage = 'No venues from service providers found.';
+        });
+      }
+
+      // The slideshow will now feature venues from service providers.
+      setState(() {
+        _allApiPlaces = providerVenues;
+        _recommendedPlaces = providerVenues;
+        _isLoading = false;
+        if (providerVenues.isNotEmpty) {
+          startSlideshow();
+        }
+      });
+    } catch (e) {
+      debugPrint('Error fetching provider venues: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load venues. Please try again later.';
+        });
+      }
+    }
   }
 
   void startSlideshow() {
@@ -520,7 +621,82 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 60), // Increased space to move the section down
+              const SizedBox(height: 30),
+
+              // Become a Service Provider Section
+              if (_isServiceProvider)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondary,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.manage_accounts, size: 32, color: theme.colorScheme.primary),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Service Provider Portal",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                            ),
+                            Text(
+                              "Manage roles & services",
+                              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceProviderSelectionScreen())),
+                        style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.primary, foregroundColor: theme.colorScheme.onPrimary),
+                        child: const Text("Access"),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.business_center, size: 32, color: theme.colorScheme.primary),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Become a Service Provider",
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                          ),
+                          Text(
+                            "Offer services & manage events",
+                            style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceProviderIntroScreen())),
+                      style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.primary, foregroundColor: theme.colorScheme.onPrimary),
+                      child: const Text("Join"),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
               Text('Recommended Venues',
                   style: TextStyle(fontSize: 18, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10), 
@@ -903,3 +1079,4 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 }
+ 

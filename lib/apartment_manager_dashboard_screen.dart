@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'rent_apartment_screen.dart'; // For Apartment model and mock data
 import 'add_edit_apartment_screen.dart';
+import 'main.dart';
 
 class ApartmentManagerDashboardScreen extends StatefulWidget {
   const ApartmentManagerDashboardScreen({super.key});
@@ -10,11 +12,24 @@ class ApartmentManagerDashboardScreen extends StatefulWidget {
 }
 
 class _ApartmentManagerDashboardScreenState extends State<ApartmentManagerDashboardScreen> {
+  Stream<List<Apartment>>? _apartmentsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      _apartmentsStream = Supabase.instance.client
+          .from('apartments')
+          .stream(primaryKey: ['id'])
+          .eq('manager_id', user.id)
+          .map((data) => data.map((map) => Apartment.fromMap(map)).toList());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // For demonstration, we'll assume the manager manages all mock apartments
-    final List<Apartment> managedApartments = mockApartments;
 
     return Scaffold(
       appBar: AppBar(
@@ -25,48 +40,67 @@ class _ApartmentManagerDashboardScreenState extends State<ApartmentManagerDashbo
         backgroundColor: theme.scaffoldBackgroundColor,
         centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.primary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: () {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
+            },
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Stats Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: StreamBuilder<List<Apartment>>(
+        stream: _apartmentsStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+          }
+
+          final managedApartments = snapshot.data!;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatCard(theme, 'Total Listings', managedApartments.length.toString(), Icons.apartment_outlined),
-                _buildStatCard(theme, 'Occupied', '3', Icons.person_search_outlined), // Mock data
-                _buildStatCard(theme, 'Vacant', '1', Icons.no_accounts_outlined), // Mock data
+                // Stats Section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatCard(theme, 'Total Listings', managedApartments.length.toString(), Icons.apartment_outlined),
+                    _buildStatCard(theme, 'Occupied', '0', Icons.person_search_outlined), // Mock data
+                    _buildStatCard(theme, 'Vacant', '0', Icons.no_accounts_outlined), // Mock data
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // My Listings Section
+                Text(
+                  'My Listings',
+                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: managedApartments.length,
+                  itemBuilder: (context, index) {
+                    return _ManagerApartmentCard(
+                      apartment: managedApartments[index],
+                      onEdit: () async {
+                        await Navigator.push<bool>(context,
+                            MaterialPageRoute(builder: (_) => AddEditApartmentScreen(editingApartment: managedApartments[index])));
+                      },
+                    );
+                  },
+                ),
               ],
             ),
-            const SizedBox(height: 32),
-
-            // My Listings Section
-            Text(
-              'My Listings',
-              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: managedApartments.length,
-              itemBuilder: (context, index) {
-                return _ManagerApartmentCard(
-                  apartment: managedApartments[index],
-                  onEdit: () async {
-                    final result = await Navigator.push<bool>(context,
-                        MaterialPageRoute(builder: (_) => AddEditApartmentScreen(editingApartment: managedApartments[index])));
-                    if (result == true) {
-                      setState(() {});
-                    }
-                  },
-                );
-              },
-            ),
-          ],
-        ),
+          );
+        }
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -125,7 +159,7 @@ class _ManagerApartmentCard extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.asset(apartment.imageUrl, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (c, o, s) => Container(width: 60, height: 60, color: theme.colorScheme.surface, child: Icon(Icons.image_not_supported, color: theme.colorScheme.onSurface.withOpacity(0.5)))),
+          child: Image.network(apartment.imageUrl, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (c, o, s) => Container(width: 60, height: 60, color: theme.colorScheme.surface, child: Icon(Icons.image_not_supported, color: theme.colorScheme.onSurface.withOpacity(0.5)))),
         ),
         title: Text(apartment.title, style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
         subtitle: Text(apartment.address, style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),

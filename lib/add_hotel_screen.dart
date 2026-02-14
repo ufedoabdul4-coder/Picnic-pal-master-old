@@ -11,15 +11,21 @@ class _AddHotelScreenState extends State<AddHotelScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _roomTypesController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
     _addressController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _roomTypesController.dispose();
     super.dispose();
   }
 
@@ -55,6 +61,12 @@ class _AddHotelScreenState extends State<AddHotelScreen> {
               _buildTextField(theme, controller: _nameController, label: 'Hotel Name', icon: Icons.business),
               const SizedBox(height: 16),
               _buildTextField(theme, controller: _addressController, label: 'Address', icon: Icons.location_on),
+              const SizedBox(height: 16),
+              _buildTextField(theme, controller: _emailController, label: 'Business Email', icon: Icons.email, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 16),
+              _buildTextField(theme, controller: _phoneController, label: 'Phone Number', icon: Icons.phone, keyboardType: TextInputType.phone),
+              const SizedBox(height: 16),
+              _buildTextField(theme, controller: _roomTypesController, label: 'Room Types (e.g., Single, Double, Suite)', icon: Icons.bed),
               const SizedBox(height: 16),
               _buildTextField(theme, controller: _descriptionController, label: 'Description', icon: Icons.description, maxLines: 3),
               const SizedBox(height: 16),
