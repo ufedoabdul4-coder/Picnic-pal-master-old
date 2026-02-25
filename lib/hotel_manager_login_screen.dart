@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hotel_manager_dashboard_screen.dart'; // Import the new dashboard
 import 'forgot_password_screen.dart';
 
@@ -14,6 +15,7 @@ class _HotelManagerLoginScreenState extends State<HotelManagerLoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,15 +24,30 @@ class _HotelManagerLoginScreenState extends State<HotelManagerLoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Placeholder for hotel manager authentication
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Hotel Manager login successful! Redirecting...'),
-      ));
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HotelManagerDashboardScreen()),
-      );
+      setState(() => _isLoading = true);
+      try {
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HotelManagerDashboardScreen()),
+          );
+        }
+      } on AuthException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An unexpected error occurred'), backgroundColor: Colors.red));
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -128,14 +145,16 @@ class _HotelManagerLoginScreenState extends State<HotelManagerLoginScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _login,
+        onPressed: _isLoading ? null : _login,
         style: ElevatedButton.styleFrom(
           backgroundColor: theme.colorScheme.primary,
           foregroundColor: theme.colorScheme.onPrimary,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        child: _isLoading
+            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
   }

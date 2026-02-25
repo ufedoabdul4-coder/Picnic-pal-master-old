@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'add_hotel_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'main.dart';
 
 class HotelRoom {
   final String id;
@@ -17,14 +20,17 @@ class HotelRoom {
     required this.status,
     required this.price,
   });
-}
 
-final List<HotelRoom> mockRooms = [
-  HotelRoom(id: '1', number: '101', type: 'Deluxe Suite', status: 'Occupied', price: 250.0),
-  HotelRoom(id: '2', number: '102', type: 'Standard Room', status: 'Available', price: 120.0),
-  HotelRoom(id: '3', number: '103', type: 'Standard Room', status: 'Cleaning', price: 120.0),
-  HotelRoom(id: '4', number: '201', type: 'Presidential Suite', status: 'Available', price: 500.0),
-];
+  factory HotelRoom.fromMap(Map<String, dynamic> map) {
+    return HotelRoom(
+      id: map['id']?.toString() ?? '',
+      number: map['room_number'] ?? '',
+      type: map['room_type'] ?? '',
+      status: map['status'] ?? 'Available',
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
 
 class HotelManagerDashboardScreen extends StatefulWidget {
   const HotelManagerDashboardScreen({super.key});
@@ -37,11 +43,26 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
   int _selectedIndex = 0;
   String _userName = "Manager";
   String _userEmail = "manager@hotel.com";
+  Stream<List<Map<String, dynamic>>>? _roomsStream;
+  String? _avatarUrl;
+  bool _isUploading = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _initRoomsStream();
+  }
+
+  void _initRoomsStream() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      _roomsStream = Supabase.instance.client
+          .from('hotel_rooms')
+          .stream(primaryKey: ['id'])
+          .eq('manager_id', user.id)
+          .order('room_number', ascending: true);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -49,13 +70,15 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
     if (user == null) return;
 
     String? nameFromDb;
+    String? avatarFromDb;
     try {
       final data = await Supabase.instance.client
           .from('profiles')
-          .select('full_name') // Assuming 'full_name' from common practice
+          .select('full_name, avatar_url') // Assuming 'full_name' from common practice
           .eq('id', user.id)
           .single();
       nameFromDb = data['full_name'];
+      avatarFromDb = data['avatar_url'];
     } catch (e) {
       debugPrint("Could not fetch hotel manager's profile name: $e");
     }
@@ -66,7 +89,308 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
         if (nameFromDb != null && nameFromDb.isNotEmpty) {
           _userName = nameFromDb;
         }
+        if (avatarFromDb != null && avatarFromDb.isNotEmpty) {
+          _avatarUrl = avatarFromDb;
+        }
       });
+    }
+  }
+
+  Future<void> _showAddRoomDialog(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    final numberController = TextEditingController();
+    final typeController = TextEditingController();
+    final priceController = TextEditingController();
+    String status = 'Available';
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          title: Text('Add New Room', style: TextStyle(color: theme.colorScheme.onSurface)),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: numberController,
+                    decoration: InputDecoration(
+                      labelText: 'Room Number',
+                      labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3))),
+                    ),
+                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: typeController,
+                    decoration: InputDecoration(
+                      labelText: 'Room Type (e.g. Deluxe)',
+                      labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3))),
+                    ),
+                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: priceController,
+                    decoration: InputDecoration(
+                      labelText: 'Price per Night',
+                      labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3))),
+                      prefixText: '\$ ',
+                      prefixStyle: TextStyle(color: theme.colorScheme.onSurface),
+                    ),
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    dropdownColor: theme.colorScheme.surface,
+                    items: ['Available', 'Occupied', 'Cleaning']
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: theme.colorScheme.onSurface))))
+                        .toList(),
+                    onChanged: (val) => status = val!,
+                    decoration: InputDecoration(
+                      labelText: 'Status',
+                      labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final user = Supabase.instance.client.auth.currentUser;
+                  if (user != null) {
+                    try {
+                      await Supabase.instance.client.from('hotel_rooms').insert({
+                        'room_number': numberController.text,
+                        'room_type': typeController.text,
+                        'price': double.tryParse(priceController.text) ?? 0.0,
+                        'status': status,
+                        'manager_id': user.id,
+                      });
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Room added successfully')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error adding room: $e')),
+                        );
+                      }
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.primary, foregroundColor: theme.colorScheme.onPrimary),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditRoomDialog(BuildContext context, HotelRoom room) async {
+    final formKey = GlobalKey<FormState>();
+    final priceController = TextEditingController(text: room.price.toString());
+    String status = room.status;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          title: Text('Edit Room ${room.number}', style: TextStyle(color: theme.colorScheme.onSurface)),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: status,
+                  dropdownColor: theme.colorScheme.surface,
+                  items: ['Available', 'Occupied', 'Cleaning']
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: theme.colorScheme.onSurface))))
+                      .toList(),
+                  onChanged: (val) => status = val!,
+                  decoration: InputDecoration(
+                    labelText: 'Status',
+                    labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3))),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: priceController,
+                  decoration: InputDecoration(
+                    labelText: 'Price per Night',
+                    labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.3))),
+                    prefixText: '\$ ',
+                    prefixStyle: TextStyle(color: theme.colorScheme.onSurface),
+                  ),
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(color: theme.colorScheme.onSurface),
+                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    backgroundColor: theme.colorScheme.surface,
+                    title: Text('Delete Room?', style: TextStyle(color: theme.colorScheme.onSurface)),
+                    content: Text('This action cannot be undone.', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface))),
+                      TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+                
+                if (confirm == true && context.mounted) {
+                   await Supabase.instance.client.from('hotel_rooms').delete().eq('id', room.id);
+                   if (context.mounted) Navigator.pop(context);
+                }
+              },
+              child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  try {
+                    await Supabase.instance.client.from('hotel_rooms').update({
+                      'price': double.tryParse(priceController.text) ?? 0.0,
+                      'status': status,
+                    }).eq('id', room.id);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Room updated successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error updating room: $e')),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.primary, foregroundColor: theme.colorScheme.onPrimary),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _uploadPhoto() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      final File file = File(image.path);
+      final user = Supabase.instance.client.auth.currentUser;
+
+      if (user != null) {
+        final String fileName = 'hotel_uploads/${user.id}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await Supabase.instance.client.storage.from('hotel_assets').upload(fileName, file);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Photo uploaded successfully!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading photo: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _onUploadAvatar() async {
+    setState(() => _isUploading = true);
+    try {
+      final picker = ImagePicker();
+      final imageFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+      if (imageFile == null) {
+        setState(() => _isUploading = false);
+        return;
+      }
+
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() => _isUploading = false);
+        return;
+      }
+
+      final bytes = await imageFile.readAsBytes();
+      final fileExt = imageFile.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final filePath = '${user.id}/$fileName';
+
+      await Supabase.instance.client.storage.from('avatars').uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      final imageUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(filePath);
+
+      await Supabase.instance.client.from('profiles').update({'avatar_url': imageUrl}).eq('id', user.id);
+
+      if (mounted) {
+        setState(() {
+          _avatarUrl = imageUrl;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error uploading avatar: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -104,24 +428,43 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
             ),
           ),
         ];
-        bodyContent = SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatsSection(theme),
-              const SizedBox(height: 24),
-              _buildActionButtons(theme),
-              const SizedBox(height: 24),
-              Text(
-                'Room Status',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-              ),
-              const SizedBox(height: 12),
-              _buildRoomsList(theme),
-            ],
-          ),
-        );
+        bodyContent = _roomsStream == null
+            ? Center(child: Text("Please log in to view dashboard", style: TextStyle(color: theme.colorScheme.onSurface)))
+            : StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _roomsStream,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text('Unable to load rooms.\n${snapshot.error.toString().contains("PGRST205") ? "Table 'hotel_rooms' not found in database." : snapshot.error}', textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
+                    ));
+                  }
+                  if (!snapshot.hasData) {
+                    return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+                  }
+
+                  final rooms = snapshot.data!.map((data) => HotelRoom.fromMap(data)).toList();
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStatsSection(theme, rooms),
+                        const SizedBox(height: 24),
+                        _buildActionButtons(theme),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Room Status',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildRoomsList(theme, rooms),
+                      ],
+                    ),
+                  );
+                },
+              );
         break;
       case 1:
         appBarTitle = Text('Manage Rooms', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
@@ -141,11 +484,36 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
         bodyContent = SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: theme.colorScheme.primary,
-                child: Icon(Icons.person, size: 50, color: theme.colorScheme.onPrimary),
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage: _avatarUrl != null && !_isUploading ? NetworkImage(_avatarUrl!) : null,
+                    backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                    child: _isUploading
+                        ? CircularProgressIndicator(color: theme.colorScheme.primary)
+                        : (_avatarUrl == null
+                            ? Icon(Icons.person, size: 50, color: theme.colorScheme.primary)
+                            : null),
+                  ),
+                  SizedBox(
+                    height: 40,
+                    width: 40,
+                    child: ElevatedButton(
+                      onPressed: _isUploading ? null : _onUploadAvatar,
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: EdgeInsets.zero,
+                        backgroundColor: theme.colorScheme.surface,
+                        elevation: 2,
+                      ),
+                      child: Icon(Icons.edit, size: 20, color: theme.colorScheme.primary),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Text(_userName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
@@ -153,7 +521,6 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
               const SizedBox(height: 32),
               _buildProfileItem(theme, Icons.settings_outlined, 'Settings'),
               _buildProfileItem(theme, Icons.help_outline, 'Help & Support'),
-              const SizedBox(height: 20),
               _buildProfileItem(theme, Icons.logout, 'Logout', isDestructive: true),
             ],
           ),
@@ -192,25 +559,38 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
     );
   }
 
-  Widget _buildStatsSection(ThemeData theme) {
-    // Example statistics, you can replace with real data as needed
-    int totalRooms = mockRooms.length;
-    int availableRooms = mockRooms.where((room) => room.status == 'Available').length;
-    int occupiedRooms = mockRooms.where((room) => room.status == 'Occupied').length;
-    int cleaningRooms = mockRooms.where((room) => room.status == 'Cleaning').length;
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'available':
+        return Colors.green;
+      case 'occupied':
+        return Colors.redAccent;
+      case 'cleaning':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildStatsSection(ThemeData theme, List<HotelRoom> rooms) {
+    int totalRooms = rooms.length;
+    int availableRooms = rooms.where((room) => room.status.toLowerCase() == 'available').length;
+    int occupiedRooms = rooms.where((room) => room.status.toLowerCase() == 'occupied').length;
+    int cleaningRooms = rooms.where((room) => room.status.toLowerCase() == 'cleaning').length;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildStatCard(theme, 'Total Rooms', totalRooms.toString(), Icons.meeting_room),
-        _buildStatCard(theme, 'Available', availableRooms.toString(), Icons.check_circle_outline),
-        _buildStatCard(theme, 'Occupied', occupiedRooms.toString(), Icons.hotel),
-        _buildStatCard(theme, 'Cleaning', cleaningRooms.toString(), Icons.cleaning_services),
+        _buildStatCard(theme, 'Available', availableRooms.toString(), Icons.check_circle_outline, color: Colors.green),
+        _buildStatCard(theme, 'Occupied', occupiedRooms.toString(), Icons.hotel, color: Colors.redAccent),
+        _buildStatCard(theme, 'Cleaning', cleaningRooms.toString(), Icons.cleaning_services, color: Colors.orange),
       ],
     );
   }
 
-  Widget _buildStatCard(ThemeData theme, String label, String value, IconData icon) {
+  Widget _buildStatCard(ThemeData theme, String label, String value, IconData icon, {Color? color}) {
+    final displayColor = color ?? theme.colorScheme.primary;
     return Expanded(
       child: Card(
         color: theme.colorScheme.secondary,
@@ -221,9 +601,9 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: theme.colorScheme.primary, size: 28),
+              Icon(icon, color: displayColor, size: 28),
               const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: displayColor)),
               const SizedBox(height: 4),
               Text(label, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSecondary.withOpacity(0.7))),
             ],
@@ -262,7 +642,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
             child: SizedBox(
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () => _showAddRoomDialog(context),
                 icon: Icon(Icons.bed, color: theme.colorScheme.onSecondary),
                 label: Text('Add Rooms', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
@@ -278,7 +658,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
             child: SizedBox(
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: _uploadPhoto,
                 icon: Icon(Icons.add_a_photo, color: theme.colorScheme.onSecondary),
                 label: Text('Upload Photos', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
@@ -290,28 +670,63 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
             ),
           ),
         ]),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const MainScreen()),
+              );
+            },
+            icon: Icon(Icons.switch_account_outlined, color: theme.colorScheme.onSecondary),
+            label: Text('Switch to User View', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.secondary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildRoomsList(ThemeData theme) {
+  Widget _buildRoomsList(ThemeData theme, List<HotelRoom> rooms) {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: mockRooms.length,
+      itemCount: rooms.length,
       itemBuilder: (context, index) {
-        final room = mockRooms[index];
+        final room = rooms[index];
         return Card(
           color: theme.colorScheme.secondary,
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
+            onTap: () => _showEditRoomDialog(context, room),
             leading: CircleAvatar(
               backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
               child: Text(room.number, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
             ),
             title: Text(room.type, style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
-            subtitle: Text(room.status, style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(room.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _getStatusColor(room.status).withOpacity(0.5)),
+                    ),
+                    child: Text(room.status, style: TextStyle(color: _getStatusColor(room.status), fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
             trailing: Text('\$${room.price}', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         );
