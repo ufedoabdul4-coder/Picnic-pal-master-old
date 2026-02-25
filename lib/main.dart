@@ -516,9 +516,13 @@ class _HomeScreenState extends State<HomeScreen> {
     timer?.cancel();
     if (_recommendedPlaces.isEmpty) return;
 
-    timer = Timer.periodic(const Duration(seconds: 3), (_) {
+    timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) {
-        timer?.cancel();
+        timer.cancel();
+        return;
+      }
+      if (_recommendedPlaces.isEmpty) {
+        timer.cancel();
         return;
       }
       setState(() {
@@ -526,6 +530,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     });
   }
+
+  Timer? get newMethod => timer;
 
  void _showPlaceInfoDialog(Place place) {
     showDialog(

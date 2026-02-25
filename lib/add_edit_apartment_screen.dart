@@ -30,6 +30,14 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
   String _condition = 'Fair';
   String _furnishing = 'Unfurnished';
   bool _isLoading = false;
+  String _selectedState = 'Abuja';
+  String _selectedArea = 'Wuse';
+
+  final Map<String, List<String>> _locationData = {
+    'Abuja': ['Wuse', 'Wuse 2', 'Garki', 'Lugbe', 'Maitama', 'Asokoro', 'Jabi', 'Gwarinpa', 'Central Business District', 'Kubwa', 'Gwagwalada'],
+    'Lagos': ['Ikeja', 'Lekki', 'Victoria Island', 'Yaba', 'Surulere', 'Ikoyi', 'Ajah', 'Maryland'],
+    'Rivers': ['Port Harcourt', 'Obio-Akpor', 'Eleme', 'Gra'],
+  };
   File? _selectedImage;
 
   @override
@@ -61,6 +69,34 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
       }
       if (['Furnished', 'Semi-Furnished', 'Unfurnished'].contains(widget.editingApartment!.furnishing)) {
         _furnishing = widget.editingApartment!.furnishing;
+      }
+      
+      // Attempt to pre-fill State and Area from the existing address string
+      for (var state in _locationData.keys) {
+        if (widget.editingApartment!.address.contains(state)) {
+          _selectedState = state;
+          // Default to first area in state, then check if we can find a specific one
+          _selectedArea = _locationData[state]!.first;
+          for (var area in _locationData[state]!) {
+            if (widget.editingApartment!.address.contains(area)) {
+              _selectedArea = area;
+              break;
+            }
+          }
+
+          // Remove the detected State and Area from the address field to avoid duplication
+          String addr = widget.editingApartment!.address;
+          if (addr.endsWith(_selectedState)) {
+            addr = addr.substring(0, addr.length - _selectedState.length).trim();
+            if (addr.endsWith(',')) addr = addr.substring(0, addr.length - 1).trim();
+          }
+          if (addr.endsWith(_selectedArea)) {
+            addr = addr.substring(0, addr.length - _selectedArea.length).trim();
+            if (addr.endsWith(',')) addr = addr.substring(0, addr.length - 1).trim();
+          }
+          _addressController.text = addr;
+          break;
+        }
       }
     }
   }
@@ -105,7 +141,7 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
 
     final apartmentData = {
       'title': _titleController.text.trim(),
-      'address': _addressController.text.trim(),
+      'address': "${_addressController.text.trim()}, $_selectedArea, $_selectedState",
       'description': _descriptionController.text.trim(),
       'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
       'image_url': _imageUrlController.text.trim(),
@@ -163,7 +199,26 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
               const SizedBox(height: 16),
               _buildImagePicker(theme),
               const SizedBox(height: 16),
-              _buildTextField(theme, _addressController, 'Property Address'),
+              Text("Location", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDropdown(theme, 'State', _locationData.keys.toList(), _selectedState, (val) {
+                      setState(() {
+                        _selectedState = val!;
+                        _selectedArea = _locationData[_selectedState]!.first;
+                      });
+                    }),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildDropdown(theme, 'Area', _locationData[_selectedState]!, _selectedArea, (val) => setState(() => _selectedArea = val!)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(theme, _addressController, 'Street Address / Landmark'),
               const SizedBox(height: 16),
               _buildTextField(theme, _estateNameController, 'Estate Name (Optional)', isOptional: true),
               const SizedBox(height: 16),
@@ -254,7 +309,8 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
   Widget _buildDropdown(ThemeData theme, String label, List<String> items, String currentValue, ValueChanged<String?> onChanged) {
     return DropdownButtonFormField<String>(
       value: currentValue,
-      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      isExpanded: true,
+      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
       onChanged: onChanged,
       style: TextStyle(color: theme.colorScheme.onSurface),
       dropdownColor: theme.colorScheme.secondary,

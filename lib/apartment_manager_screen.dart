@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'rent_apartment_screen.dart';
 import 'add_edit_apartment_screen.dart';
-import 'apartment_details_screen.dart';
 import 'main.dart';
 
 class ApartmentManagerScreen extends StatefulWidget {
