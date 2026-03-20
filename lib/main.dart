@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,6 +32,9 @@ void main() async {
   // This is required to ensure that Flutter's bindings are initialized
   // before any async operations are performed in main.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Hide system bars (navigation and status bar) for an immersive experience
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   // Initialize Supabase
   await Supabase.initialize(

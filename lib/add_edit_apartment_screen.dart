@@ -38,7 +38,8 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
     'Lagos': ['Ikeja', 'Lekki', 'Victoria Island', 'Yaba', 'Surulere', 'Ikoyi', 'Ajah', 'Maryland'],
     'Rivers': ['Port Harcourt', 'Obio-Akpor', 'Eleme', 'Gra'],
   };
-  File? _selectedImage;
+  List<File> _selectedImages = [];
+  List<String> _existingImages = [];
 
   @override
   void initState() {
@@ -98,6 +99,7 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
           break;
         }
       }
+      _fetchExistingImages();
     }
   }
 
@@ -115,14 +117,35 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchExistingImages() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('apartments')
+          .select('images')
+          .eq('id', widget.editingApartment!.id)
+          .maybeSingle();
+
+      if (response != null && response['images'] != null) {
+        setState(() {
+          _existingImages = List<String>.from(response['images']);
+        });
+      } else if (_imageUrlController.text.isNotEmpty) {
+        setState(() {
+          _existingImages = [_imageUrlController.text];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching images: $e');
+    }
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     try {
-      final pickedFile = await picker.pickMedia();
-      if (pickedFile != null) {
+      final pickedFiles = await picker.pickMultipleMedia(limit: 20);
+      if (pickedFiles.isNotEmpty) {
         setState(() {
-          _selectedImage = File(pickedFile.path);
-          _imageUrlController.text = pickedFile.path;
+          _selectedImages.addAll(pickedFiles.map((x) => File(x.path)));
         });
       }
     } catch (e) {
@@ -131,7 +154,44 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
     }
   }
 
-  Future<void> _saveApartment() async {
+  void _removeSelectedImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  Future<void> _removeExistingImage(String url) async {
+    setState(() {
+      _existingImages.remove(url);
+    });
+
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // Attempt to extract file path and delete from storage
+      // Expected URL format: .../apartment-images/filename
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      final bucketIndex = pathSegments.indexOf('apartment-images');
+      
+      if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
+         final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
+         await supabase.storage.from('apartment-images').remove([filePath]);
+      }
+
+      // Update database row immediately
+      final String newCover = _existingImages.isNotEmpty ? _existingImages.first : '';
+      await supabase.from('apartments').update({
+        'images': _existingImages,
+        'image_url': newCover,
+      }).eq('id', widget.editingApartment!.id);
+
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting image: $e')));
+    }
+  }
+
+Future<void> _saveApartment() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -144,12 +204,42 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
 
     final amenitiesList = _amenitiesController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
+    // Start with existing images
+    List<String> allImageUrls = [..._existingImages];
+    String coverImageUrl = allImageUrls.isNotEmpty ? allImageUrls.first : '';
+
+    final supabase = Supabase.instance.client;
+
+    // Upload new images
+    for (var imageFile in _selectedImages) {
+      try {
+        final fileName = '${user.id}-${DateTime.now().millisecondsSinceEpoch}-${imageFile.path.split('/').last}';
+        final filePath = 'apartment-images/$fileName';
+
+        await supabase.storage.from('apartment-images').uploadBinary(
+          filePath,
+          await imageFile.readAsBytes(),
+        );
+
+        final uploadedUrl = supabase.storage.from('apartment-images').getPublicUrl(filePath);
+        allImageUrls.add(uploadedUrl);
+      } catch (uploadError) {
+        debugPrint('Image upload failed for ${imageFile.path}: $uploadError');
+      }
+    }
+
+    // Update the cover image to the first one available
+    if (allImageUrls.isNotEmpty) {
+      coverImageUrl = allImageUrls.first;
+    }
+
     final apartmentData = {
       'title': _titleController.text.trim(),
       'address': "${_addressController.text.trim()}, $_selectedArea, $_selectedState",
       'description': _descriptionController.text.trim(),
       'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
-      'image_url': _imageUrlController.text.trim(),
+      'image_url': coverImageUrl, // Keep primary image for backward compatibility
+      'images': allImageUrls, // Send full list
       'manager_id': user.id,
       'property_type': _propertyType,
       'bedrooms': int.parse(_bedrooms),
@@ -163,12 +253,12 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
 
     try {
       if (widget.editingApartment != null) {
-        await Supabase.instance.client
+        await supabase
             .from('apartments')
             .update(apartmentData)
             .eq('id', widget.editingApartment!.id);
       } else {
-        await Supabase.instance.client.from('apartments').insert(apartmentData);
+        await supabase.from('apartments').insert(apartmentData);
       }
       if (mounted) {
         Navigator.pop(context, true);
@@ -344,47 +434,92 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
 
   // Helper to build the image preview based on state (File vs Network vs Asset)
   Widget _buildPreviewContent(ThemeData theme) {
-    // 1. New image/video selected by user
-    if (_selectedImage != null) {
-      final path = _selectedImage!.path.toLowerCase();
-      // Check for video extensions
-      if (path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.avi') || path.endsWith('.mkv')) {
-        return Container(
-          color: Colors.black12,
-          child: Center(child: Icon(Icons.play_circle_fill, size: 50, color: theme.colorScheme.primary)),
-        );
+    List<Widget> thumbs = [];
+    int totalIndex = 0;
+
+    // 1. Existing images from DB
+    for (var path in _existingImages) {
+      Widget imageWidget;
+      if (path.startsWith('http')) {
+        imageWidget = Image.network(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image));
+      } else {
+        imageWidget = Image.asset(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image));
       }
-      // Image file
-      return Image.file(
-        _selectedImage!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)),
+      
+      List<Widget> stackChildren = [
+        imageWidget,
+        Positioned(top: 0, right: 0, child: GestureDetector(
+            onTap: () => _removeExistingImage(path),
+            child: Container(decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle), padding: const EdgeInsets.all(2), child: const Icon(Icons.close, color: Colors.white, size: 18)),
+        )),
+      ];
+
+      if (totalIndex == 0) {
+        stackChildren.add(Positioned(bottom: 0, left: 0, right: 0, child: Container(color: Colors.black54, padding: const EdgeInsets.all(2), child: const Text("Cover", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10)))));
+      }
+
+      thumbs.add(
+        Container(
+          width: 100,
+          margin: const EdgeInsets.only(right: 8),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+          child: Stack(fit: StackFit.expand, children: stackChildren),
+        )
+      );
+      totalIndex++;
+    }
+
+    // 2. Newly selected images
+    for (int i = 0; i < _selectedImages.length; i++) {
+      final file = _selectedImages[i];
+      final path = file.path.toLowerCase();
+      Widget content;
+      if (path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.avi') || path.endsWith('.mkv')) {
+        content = Container(color: Colors.black12, child: Icon(Icons.play_circle_fill, color: theme.colorScheme.primary));
+      } else {
+        content = Image.file(file, fit: BoxFit.cover);
+      }
+
+      List<Widget> stackChildren = [
+        content,
+        Positioned(top: 0, right: 0, child: GestureDetector(
+            onTap: () => _removeSelectedImage(i),
+            child: Container(decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle), padding: const EdgeInsets.all(2), child: const Icon(Icons.close, color: Colors.white, size: 18)),
+        )),
+      ];
+
+      if (totalIndex == 0) {
+        stackChildren.add(Positioned(bottom: 0, left: 0, right: 0, child: Container(color: Colors.black54, padding: const EdgeInsets.all(2), child: const Text("Cover", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10)))));
+      }
+
+      thumbs.add(
+        Container(
+          width: 100,
+          margin: const EdgeInsets.only(right: 8),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+          child: Stack(fit: StackFit.expand, children: stackChildren),
+        )
+      );
+      totalIndex++;
+    }
+
+    if (thumbs.isNotEmpty) {
+      return ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.all(8),
+        children: thumbs,
       );
     }
 
-    // 2. Existing image from text controller
-    if (_imageUrlController.text.isNotEmpty) {
-      final path = _imageUrlController.text;
-      if (path.startsWith('http')) {
-        return Image.network(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)));
-      } else if (path.startsWith('assets/')) {
-        return Image.asset(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)));
-      } else {
-        // Local file path
-        final file = File(path.startsWith('file://') ? Uri.parse(path).toFilePath() : path);
-        return Image.file(file, fit: BoxFit.cover, width: double.infinity, height: double.infinity, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)));
-      }
-    }
-
-    // 3. Default placeholder
+    // 3. Default placeholder if no images
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(Icons.camera_alt, size: 30, color: theme.colorScheme.primary),
         const SizedBox(height: 6),
-        Text('Add 5 Photos or Videos', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.bold)),
+        Text('Add up to 20 Photos', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.bold)),
         Text('(first picture is used as your cover photo)', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
         Text('(Tap to add)', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
       ],

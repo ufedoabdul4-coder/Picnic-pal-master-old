@@ -17,13 +17,61 @@ class _ApartmentManagerDashboardScreenState extends State<ApartmentManagerDashbo
   @override
   void initState() {
     super.initState();
+    _initStream();
+  }
+
+  void _initStream() {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
-      _apartmentsStream = Supabase.instance.client
-          .from('apartments')
-          .stream(primaryKey: ['id'])
-          .eq('manager_id', user.id)
-          .map((data) => data.map((map) => Apartment.fromMap(map)).toList());
+      setState(() {
+        _apartmentsStream = Supabase.instance.client
+            .from('apartments')
+            .stream(primaryKey: ['id'])
+            .eq('manager_id', user.id)
+            .map((data) => data.map((map) => Apartment.fromMap(map)).toList());
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
+    _initStream();
+    await Future.delayed(const Duration(seconds: 1)); // UX delay
+  }
+
+  Future<void> _deleteApartment(String id) async {
+    final theme = Theme.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.colorScheme.surface,
+        title: Text('Delete Listing?', style: TextStyle(color: theme.colorScheme.onSurface)),
+        content: Text('Are you sure you want to delete this apartment? This action cannot be undone.', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.8))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await Supabase.instance.client.from('apartments').delete().eq('id', id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apartment deleted successfully')));
+          _initStream();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+        }
+      }
     }
   }
 
@@ -61,43 +109,49 @@ class _ApartmentManagerDashboardScreenState extends State<ApartmentManagerDashbo
 
           final managedApartments = snapshot.data!;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Stats Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildStatCard(theme, 'Total Listings', managedApartments.length.toString(), Icons.apartment_outlined),
-                    _buildStatCard(theme, 'Occupied', '0', Icons.person_search_outlined), // Mock data
-                    _buildStatCard(theme, 'Vacant', '0', Icons.no_accounts_outlined), // Mock data
-                  ],
-                ),
-                const SizedBox(height: 32),
+          return RefreshIndicator(
+            onRefresh: _refreshData,
+            color: theme.colorScheme.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Stats Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatCard(theme, 'Total Listings', managedApartments.length.toString(), Icons.apartment_outlined),
+                      _buildStatCard(theme, 'Occupied', '0', Icons.person_search_outlined), // Mock data
+                      _buildStatCard(theme, 'Vacant', '0', Icons.no_accounts_outlined), // Mock data
+                    ],
+                  ),
+                  const SizedBox(height: 32),
 
-                // My Listings Section
-                Text(
-                  'My Listings',
-                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: managedApartments.length,
-                  itemBuilder: (context, index) {
-                    return _ManagerApartmentCard(
-                      apartment: managedApartments[index],
-                      onEdit: () async {
-                        await Navigator.push<bool>(context,
-                            MaterialPageRoute(builder: (_) => AddEditApartmentScreen(editingApartment: managedApartments[index])));
-                      },
-                    );
-                  },
-                ),
-              ],
+                  // My Listings Section
+                  Text(
+                    'My Listings',
+                    style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: managedApartments.length,
+                    itemBuilder: (context, index) {
+                      return _ManagerApartmentCard(
+                        apartment: managedApartments[index],
+                        onEdit: () async {
+                          await Navigator.push<bool>(context,
+                              MaterialPageRoute(builder: (_) => AddEditApartmentScreen(editingApartment: managedApartments[index])));
+                        },
+                        onDelete: () => _deleteApartment(managedApartments[index].id),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -146,7 +200,8 @@ class _ApartmentManagerDashboardScreenState extends State<ApartmentManagerDashbo
 class _ManagerApartmentCard extends StatelessWidget {
   final Apartment apartment;
   final VoidCallback onEdit;
-  const _ManagerApartmentCard({required this.apartment, required this.onEdit});
+  final VoidCallback onDelete;
+  const _ManagerApartmentCard({required this.apartment, required this.onEdit, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -163,8 +218,16 @@ class _ManagerApartmentCard extends StatelessWidget {
         ),
         title: Text(apartment.title, style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
         subtitle: Text(apartment.address, style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
-        trailing: IconButton(
-          icon: Icon(Icons.edit_outlined, color: theme.colorScheme.primary), onPressed: onEdit,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.edit_outlined, color: theme.colorScheme.primary), onPressed: onEdit,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: onDelete,
+            ),
+          ],
         ),
       ),
     );
