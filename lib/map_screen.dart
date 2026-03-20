@@ -5,14 +5,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'place.dart';
 
-class SmartPalMapScreen extends StatefulWidget {
-  const SmartPalMapScreen({Key? key}) : super(key: key);
+class QuivvoMapScreen extends StatefulWidget {
+  const QuivvoMapScreen({Key? key}) : super(key: key);
 
   @override
-  State<SmartPalMapScreen> createState() => _SmartPalMapScreenState();
+  State<QuivvoMapScreen> createState() => _QuivvoMapScreenState();
 }
 
-class _SmartPalMapScreenState extends State<SmartPalMapScreen> {
+class _QuivvoMapScreenState extends State<QuivvoMapScreen> {
   GoogleMapController? _mapController;
   LatLng _currentLocation = const LatLng(37.4219999, -122.0840575); // fallback
   Set<Marker> _markers = {};

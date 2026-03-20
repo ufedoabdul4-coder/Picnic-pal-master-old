@@ -1,6 +1,6 @@
-# Picnic Pal
+# Quivvo
 
-Picnic Pal is a Flutter app that helps users discover venues and plan events with optional AI assistance and audio transcription. The workspace also includes a small Flask backend for audio transcription using Google Speech-to-Text.
+Quivvo is a Flutter app that helps users discover venues and plan events with optional AI assistance and audio transcription. The workspace also includes a small Flask backend for audio transcription using Google Speech-to-Text.
 
 Quick links:
 - App entry: [lib/main.dart](lib/main.dart)
@@ -76,7 +76,24 @@ The backend is a Flask application for transcribing audio using Google Speech-to
     ```sh
     export FLASK_APP=app.py
     ```
-5. Run the Flask application:
+5. Set environment variables for Google Cloud:
+
+    The backend requires credentials to access Google Cloud Speech-to-Text and an optional bucket for long audio files. You must set the `GOOGLE_APPLICATION_CREDENTIALS` variable in the same terminal session where you run the server.
+
+    - **On macOS/Linux:**
+      ```sh
+      # Replace with the actual path to your service account JSON file
+      export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/google-credentials.json"
+      # Replace with your GCS bucket name (optional, for audio > 60s)
+      export GCS_BUCKET_NAME="your-gcs-bucket-name"
+      ```
+    - **On Windows (Command Prompt):**
+      ```cmd
+      set GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\google-credentials.json"
+      set GCS_BUCKET_NAME="your-gcs-bucket-name"
+      ```
+
+6. Run the Flask application:
     ```sh
     flask run
     ```

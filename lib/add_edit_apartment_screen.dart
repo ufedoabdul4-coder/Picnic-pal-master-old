@@ -117,12 +117,17 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickMedia();
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-        _imageUrlController.text = pickedFile.path;
-      });
+    try {
+      final pickedFile = await picker.pickMedia();
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+          _imageUrlController.text = pickedFile.path;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      // Optional: Show a snackbar here if you want to notify the user of an error
     }
   }
 
@@ -337,6 +342,55 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
     );
   }
 
+  // Helper to build the image preview based on state (File vs Network vs Asset)
+  Widget _buildPreviewContent(ThemeData theme) {
+    // 1. New image/video selected by user
+    if (_selectedImage != null) {
+      final path = _selectedImage!.path.toLowerCase();
+      // Check for video extensions
+      if (path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.avi') || path.endsWith('.mkv')) {
+        return Container(
+          color: Colors.black12,
+          child: Center(child: Icon(Icons.play_circle_fill, size: 50, color: theme.colorScheme.primary)),
+        );
+      }
+      // Image file
+      return Image.file(
+        _selectedImage!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)),
+      );
+    }
+
+    // 2. Existing image from text controller
+    if (_imageUrlController.text.isNotEmpty) {
+      final path = _imageUrlController.text;
+      if (path.startsWith('http')) {
+        return Image.network(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)));
+      } else if (path.startsWith('assets/')) {
+        return Image.asset(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)));
+      } else {
+        // Local file path
+        final file = File(path.startsWith('file://') ? Uri.parse(path).toFilePath() : path);
+        return Image.file(file, fit: BoxFit.cover, width: double.infinity, height: double.infinity, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: Icon(Icons.broken_image, color: theme.colorScheme.onSurface)));
+      }
+    }
+
+    // 3. Default placeholder
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.camera_alt, size: 30, color: theme.colorScheme.primary),
+        const SizedBox(height: 6),
+        Text('Add 5 Photos or Videos', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.bold)),
+        Text('(first picture is used as your cover photo)', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
+        Text('(Tap to add)', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
+      ],
+    );
+  }
+
   Widget _buildImagePicker(ThemeData theme) {
     return GestureDetector(
       onTap: _pickImage,
@@ -348,33 +402,10 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: theme.colorScheme.onSurface.withOpacity(0.3)),
         ),
-        child: _selectedImage != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: _selectedImage!.path.toLowerCase().endsWith('.mp4') || _selectedImage!.path.toLowerCase().endsWith('.mov')
-                    ? Container(
-                        color: Colors.black12,
-                        child: Center(child: Icon(Icons.play_circle_fill, size: 50, color: theme.colorScheme.primary)),
-                      )
-                    : Image.file(_selectedImage!, fit: BoxFit.cover),
-              )
-            : (_imageUrlController.text.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _imageUrlController.text.startsWith('http')
-                        ? Image.network(_imageUrlController.text, fit: BoxFit.cover)
-                        : Image.file(File(_imageUrlController.text), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.broken_image, color: theme.colorScheme.onSurface)),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt, size: 30, color: theme.colorScheme.primary),
-                      const SizedBox(height: 6),
-                      Text('Add 5 Photos or Videos', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.bold)),
-                      Text('(first picture is used as your cover photo)', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
-                      Text('(Tap to add)', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
-                    ],
-                  )),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: _buildPreviewContent(theme),
+        ),
       ),
     );
   }

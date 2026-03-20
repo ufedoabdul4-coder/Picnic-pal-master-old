@@ -18,6 +18,11 @@ logging.basicConfig(level=logging.INFO)
 # This automatically finds credentials via the GOOGLE_APPLICATION_CREDENTIALS
 # environment variable. Make sure this variable is set in your terminal.
 try:
+    # Add a more specific check for the credentials environment variable
+    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        logging.critical("FATAL ERROR: The 'GOOGLE_APPLICATION_CREDENTIALS' environment variable is not set.")
+        logging.critical("Please set this variable to the full path of your service account JSON file.")
+        raise EnvironmentError("Google Cloud credentials are not configured.")
     speech_client = speech.SpeechClient()
     storage_client = storage.Client()
     logging.info("Google Speech-to-Text client initialized successfully.")

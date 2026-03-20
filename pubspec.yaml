@@ -42,7 +42,7 @@ flutter:
 
   assets:
     - assets/images/
-    - assets/google-credentials.json
+    - assets/Quivvo google-credentials.json
 flutter_launcher_icons:
   android: "app_icon" # The name of the icon file for Android
   ios: false           # Generate icons for iOS

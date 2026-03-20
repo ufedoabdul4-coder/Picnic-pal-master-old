@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:http/http.dart' as http;
@@ -45,13 +46,13 @@ void main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
-  final savedTheme = prefs.getString('selected_theme') ?? 'Smart Pal';
+  final savedTheme = prefs.getString('selected_theme') ?? 'Quivvo';
   runApp(MyApp(key: myAppKey, initialTheme: savedTheme));
 }
 
 class MyApp extends StatefulWidget {
   final String initialTheme;
-  const MyApp({super.key, this.initialTheme = 'Smart Pal'});
+  const MyApp({super.key, this.initialTheme = 'Quivvo'});
 
   @override
   State<MyApp> createState() => MyAppState();
@@ -99,7 +100,7 @@ class MyAppState extends State<MyApp> {
       ),
     );
 
-    // The "Picnic Pal" theme, now correctly configured as the app's light theme.
+    // The "Quivvo" theme, now correctly configured as the app's light theme.
     final lightTheme = ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: const Color(0xFF042C20),
@@ -138,17 +139,39 @@ class MyAppState extends State<MyApp> {
       ),
     );
 
+    // The new "Teal" theme
+    final tealTheme = ThemeData(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255), // Off-White / Bone
+      primaryColor: const Color(0xFF136B6B), // Deep Teal
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF136B6B), // Deep Teal
+        onPrimary: Colors.white, // White text on buttons
+        surface: Colors.white, // White cards for contrast against off-white bg
+        onSurface: Color(0xFF333333), // Dark Charcoal Grey
+        secondary: Colors.white, // White backgrounds for inputs
+        onSecondary: Color(0xFF333333), // Dark Charcoal text on inputs
+        tertiary: Color(0xFFF27D52), // Coral / Burnt Orange (Accent)
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color.fromARGB(255, 255, 255, 255), // Match background
+        elevation: 0,
+        iconTheme: IconThemeData(color: Color(0xFF136B6B)), // Teal icons
+      ),
+    );
+
     final Map<String, ThemeData> themes = {
-      'Smart Pal': lightTheme,
+      'Quivvo': lightTheme,
       'Dark': darkTheme,
       'Light': originTheme, // Renamed "Origin" to "Light"
+      'Teal': tealTheme,
     };
 
     // The MaterialApp should be the root. It will handle theme changes internally
     // without restarting the app. This fixes the splash screen issue.
     return MaterialApp(
       // The theme is now dynamically selected from our map
-      theme: themes[_currentTheme],
+      theme: themes[_currentTheme] ?? lightTheme,
       debugShowCheckedModeBanner: false,
       home: const AnimatedSplashScreen(),
     );
@@ -167,7 +190,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
-  String fullText = "Smart Pal";
+  String fullText = "Quivvo";
   String displayedText = "";
   int _charIndex = 0;
 
@@ -186,7 +209,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
 
     _requestAllPermissions();
 
-    Timer.periodic(const Duration(milliseconds: 200), (timer) {
+    var timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
       if (_charIndex < fullText.length) {
         if (!mounted) return;
         setState(() {
@@ -220,6 +243,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
       Permission.microphone,
       Permission.notification,
       Permission.photos,
+      Permission.videos, // Required for Android 13+ when using pickMedia
       Permission.storage,
     ].request();
   }
@@ -271,7 +295,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _pages = [
       const HomeScreen(),
-      const SmartPalMapScreen(),
+const QuivvoMapScreen(),
       const EventsPage(), // This will now be correctly indexed
       const ProfileScreen(),
     ];
@@ -576,7 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         title: Text(
-          'Smart Pal',
+          'Quivvo',
           style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -714,6 +738,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Helper to build images from Network, File, or Assets dynamically
+  Widget _buildImage(String? path, {double? height, double? width}) {
+    if (path == null || path.isEmpty) {
+      return Container(height: height, width: width, color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54));
+    }
+    if (path.startsWith('http')) {
+      return Image.network(path, height: height, width: width, fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(height: height, width: width, color: Colors.grey[800], child: const Icon(Icons.broken_image, color: Colors.white54)),
+      );
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(path, height: height, width: width, fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(height: height, width: width, color: Colors.grey[800], child: const Icon(Icons.broken_image, color: Colors.white54)),
+      );
+    } else {
+      // Assume local file path (user picked image)
+      final file = File(path.startsWith('file://') ? Uri.parse(path).toFilePath() : path);
+      return Image.file(file, height: height, width: width, fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(height: height, width: width, color: Colors.grey[800], child: const Icon(Icons.broken_image, color: Colors.white54)),
+      );
+    }
+  }
+
   Widget _buildVenuesWidget() {
     final theme = Theme.of(context);
     if (_isLoading) {
@@ -743,9 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: _recommendedPlaces[currentIndex].photoUrl != null
-                ? Image.asset(_recommendedPlaces[currentIndex].photoUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)))
-                : Container(color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)),
+            child: _buildImage(_recommendedPlaces[currentIndex].photoUrl),
           ),
           _buildVenueCardOverlay(_recommendedPlaces[currentIndex]),
         ],
@@ -772,12 +816,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Stack(
               alignment: Alignment.bottomLeft,
               children: [
-                Image.asset(
+                _buildImage(
                   place.photoUrl!,
                   height: 180,
                   width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(height: 180, color: Colors.grey[800], child: const Icon(Icons.image_not_supported, color: Colors.white54)),
                 ),
                 _buildVenueCardOverlay(place),
               ],
@@ -937,6 +979,20 @@ class _EventsPageState extends State<EventsPage> {
     setState(() {});
   }
 
+  // Helper to handle mixed image types for events
+  Widget _buildEventImage(String path, bool isDarkMode) {
+    final errorWidget = Container(height: 220, color: Colors.grey[isDarkMode ? 800 : 300], child: const Icon(Icons.image_not_supported, color: Colors.white54));
+    
+    if (path.startsWith('http')) {
+      return Image.network(path, height: 220, width: double.maxFinite, fit: BoxFit.cover, errorBuilder: (_, __, ___) => errorWidget);
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(path, height: 220, width: double.maxFinite, fit: BoxFit.cover, errorBuilder: (_, __, ___) => errorWidget);
+    } else {
+      final file = File(path.startsWith('file://') ? Uri.parse(path).toFilePath() : path);
+      return Image.file(file, height: 220, width: double.maxFinite, fit: BoxFit.cover, errorBuilder: (_, __, ___) => errorWidget);
+    }
+  }
+
   void _showDeleteConfirmation(BuildContext context, Event event) {
     final theme = Theme.of(context);
     showDialog(
@@ -1020,13 +1076,7 @@ class _EventsPageState extends State<EventsPage> {
                   child: Stack(
                     children: [
                       // Image with a gradient overlay for text readability. Changed to Image.asset.
-                      Image.asset(
-                        event.image,
-                        height: 220,
-                        width: double.maxFinite,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(height: 220, color: Colors.grey[isDarkMode ? 800 : 300], child: const Icon(Icons.image_not_supported, color: Colors.white54)),
-                      ),
+                      _buildEventImage(event.image, isDarkMode),
                       Container(
                         height: 220,
                         decoration: BoxDecoration(
