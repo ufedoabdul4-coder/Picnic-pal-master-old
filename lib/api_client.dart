@@ -37,14 +37,20 @@ class ApiClient {
     request.headers['x-app-token'] = token;
     request.files.add(await http.MultipartFile.fromPath('file', audioPath));
 
-    final response = await request.send();
+    try {
+      final response = await request.send();
 
-    if (response.statusCode == 200) {
-      final responseBody = await response.stream.bytesToString();
-      final decoded = json.decode(responseBody);
-      return decoded['transcript'];
-    } else {
-      throw Exception('Failed to transcribe audio. Status code: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final responseBody = await response.stream.bytesToString();
+        final decoded = json.decode(responseBody);
+        return decoded['transcript'];
+      } else {
+        throw Exception('Failed to transcribe audio. Status code: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('No internet connection. Please check your network and try again.');
+    } catch (e) {
+      throw Exception('Unable to transcribe audio. Please try again.');
     }
   }
 }

@@ -371,7 +371,7 @@ Text("Quivvo is thinking...", style: TextStyle(color: theme.colorScheme.onSurfac
       developer.log('Transcription Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Network error. Is the backend server running?")),
+          SnackBar(content: Text(e.toString())),
         );
       }
     } finally {

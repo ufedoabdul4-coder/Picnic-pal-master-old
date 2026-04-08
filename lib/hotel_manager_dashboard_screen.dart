@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'add_hotel_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -32,6 +32,46 @@ class HotelRoom {
   }
 }
 
+class Hotel {
+  final String id;
+  final String name;
+  final String address;
+  final String imageUrl;
+  final int roomCount;
+  final double rating;
+
+  Hotel({required this.id, required this.name, required this.address, required this.imageUrl, required this.roomCount, required this.rating});
+}
+
+class Booking {
+  final String id;
+  final String guestName;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final String status;
+  final double amount;
+
+  Booking({
+    required this.id,
+    required this.guestName,
+    required this.checkIn,
+    required this.checkOut,
+    required this.status,
+    required this.amount,
+  });
+
+  factory Booking.fromMap(Map<String, dynamic> map) {
+    return Booking(
+      id: map['id']?.toString() ?? '',
+      guestName: map['guest_name'] ?? 'Guest',
+      checkIn: DateTime.tryParse(map['check_in']?.toString() ?? '') ?? DateTime.now(),
+      checkOut: DateTime.tryParse(map['check_out']?.toString() ?? '') ?? DateTime.now(),
+      status: map['status'] ?? 'Pending',
+      amount: (map['total_amount'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
 class HotelManagerDashboardScreen extends StatefulWidget {
   const HotelManagerDashboardScreen({super.key});
 
@@ -44,14 +84,18 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
   String _userName = "Manager";
   String _userEmail = "manager@hotel.com";
   Stream<List<Map<String, dynamic>>>? _roomsStream;
+  Stream<List<Map<String, dynamic>>>? _notificationsStream;
+  Stream<List<Map<String, dynamic>>>? _bookingsStream;
   String? _avatarUrl;
   bool _isUploading = false;
-
+  
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _initRoomsStream();
+    _initBookingsStream();
+    _initNotificationsStream();
   }
 
   void _initRoomsStream() {
@@ -62,6 +106,29 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
           .stream(primaryKey: ['id'])
           .eq('manager_id', user.id)
           .order('room_number', ascending: true);
+    }
+  }
+
+  void _initBookingsStream() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      _bookingsStream = Supabase.instance.client
+          .from('bookings')
+          .stream(primaryKey: ['id'])
+          .eq('manager_id', user.id)
+          .order('check_in', ascending: false);
+    }
+  }
+
+  void _initNotificationsStream() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      _notificationsStream = Supabase.instance.client
+          .from('notifications')
+          .stream(primaryKey: ['id'])
+          .eq('manager_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(5);
     }
   }
 
@@ -324,12 +391,12 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
 
-      final File file = File(image.path);
+      final Uint8List fileBytes = await image.readAsBytes();
       final user = Supabase.instance.client.auth.currentUser;
 
       if (user != null) {
         final String fileName = 'hotel_uploads/${user.id}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-        await Supabase.instance.client.storage.from('hotel_assets').upload(fileName, file);
+        await Supabase.instance.client.storage.from('hotel_assets').uploadBinary(fileName, fileBytes);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -394,6 +461,14 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
     }
   }
 
+  String _formatCurrency(double amount) {
+    return '\$${amount.toStringAsFixed(2)}';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -405,30 +480,18 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
     final theme = Theme.of(context);
 
     Widget bodyContent;
-    Widget appBarTitle;
+    Widget? appBarTitle;
     List<Widget>? appBarActions;
+    Widget? leadingWidget;
     bool centerTitle = true;
 
     switch (_selectedIndex) {
       case 0:
-        centerTitle = false;
-        appBarTitle = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Welcome back,', style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6))),
-            Text(_userName, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
-          ],
-        );
-        appBarActions = [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              backgroundColor: theme.colorScheme.primary,
-              child: Text(_userName.isNotEmpty ? _userName[0].toUpperCase() : 'M', style: TextStyle(color: theme.colorScheme.onPrimary)),
-            ),
-          ),
-        ];
-        bodyContent = _roomsStream == null
+        appBarTitle = Text('Overview', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
+        // Profile moved to actions in all tabs or specific tabs
+        leadingWidget = _buildHomeAction(theme);
+        appBarActions = [_buildProfileAvatarAction(theme)];
+        bodyContent = _roomsStream == null || _bookingsStream == null
             ? Center(child: Text("Please log in to view dashboard", style: TextStyle(color: theme.colorScheme.onSurface)))
             : StreamBuilder<List<Map<String, dynamic>>>(
                 stream: _roomsStream,
@@ -436,14 +499,96 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                   if (snapshot.hasError) {
                     return Center(child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Text('Unable to load rooms.\n${snapshot.error.toString().contains("PGRST205") ? "Table 'hotel_rooms' not found in database." : snapshot.error}', textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
+                      child: Text('Unable to load rooms. Please check your internet connection.', textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
                     ));
                   }
                   if (!snapshot.hasData) {
                     return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
                   }
 
-                  final rooms = snapshot.data!.map((data) => HotelRoom.fromMap(data)).toList();
+                  final rooms = (snapshot.data ?? []).map((data) => HotelRoom.fromMap(data)).toList();
+                  
+                  return StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _bookingsStream,
+                    builder: (context, bookingsSnapshot) {
+                      final bookings = (bookingsSnapshot.data ?? []).map((data) => Booking.fromMap(data)).toList();
+
+                      // Calculate metrics
+                      int totalRooms = rooms.length;
+                      int activeBookings = bookings.where((b) => b.status == 'Upcoming' || b.status == 'Pending').length;
+                      
+                      // Calculate Today's Revenue (sum of amounts for bookings created or checking in today)
+                      DateTime now = DateTime.now();
+                      double todayRevenue = bookings
+                          .where((b) => b.checkIn.year == now.year && b.checkIn.month == now.month && b.checkIn.day == now.day)
+                          .fold(0.0, (sum, b) => sum + b.amount);
+                      
+                      double occupancyRate = totalRooms > 0 ? (rooms.where((r) => r.status == 'Occupied').length / totalRooms) * 100 : 0;
+
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildOverviewCards(theme, totalRooms, activeBookings, todayRevenue, occupancyRate),
+                            const SizedBox(height: 24),
+                            Text('Recent Notifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                            const SizedBox(height: 12),
+                            _buildNotificationsList(theme),
+                          ],
+                        ),
+                      );
+                    }
+                  );
+                },
+              );
+        break;
+      case 1:
+        appBarTitle = Text('My Hotels', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
+        leadingWidget = _buildHomeAction(theme);
+        appBarActions = [_buildProfileAvatarAction(theme)];
+        bodyContent = ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildHotelCard(theme, Hotel(id: '1', name: 'Grand Plaza Hotel', address: '123 Main St, Abuja', imageUrl: '', roomCount: 45, rating: 4.5)),
+            _buildHotelCard(theme, Hotel(id: '2', name: 'Seaside Resort', address: '45 Beach Rd, Lagos', imageUrl: '', roomCount: 20, rating: 4.8)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AddHotelScreen()));
+              },
+              icon: const Icon(Icons.add),
+              label: const Text("Add New Hotel"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ],
+        );
+        break;
+      case 2:
+        appBarTitle = Text('Room Management', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
+        appBarActions = [
+          IconButton(icon: const Icon(Icons.add), onPressed: () => _showAddRoomDialog(context)),
+          _buildProfileAvatarAction(theme)
+        ];
+        leadingWidget = _buildHomeAction(theme);
+        bodyContent = StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _roomsStream,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text('Unable to load rooms. Please check your internet connection.', textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
+                    ));
+                  }
+                  if (!snapshot.hasData) {
+                    return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+                  }
+
+                  final rooms = (snapshot.data ?? []).map((data) => HotelRoom.fromMap(data)).toList();
 
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(16.0),
@@ -466,68 +611,112 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                 },
               );
         break;
-      case 1:
-        appBarTitle = Text('Manage Rooms', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
-        bodyContent = Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.bed_outlined, size: 80, color: theme.colorScheme.onSurface.withOpacity(0.2)),
-              const SizedBox(height: 16),
-              Text('Room management coming soon', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 18)),
-            ],
-          ),
-        );
-        break;
-      case 2:
-        appBarTitle = Text('Profile', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
-        bodyContent = SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Stack(
-                alignment: Alignment.bottomRight,
+      case 3:
+        appBarTitle = Text('Bookings', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
+        leadingWidget = _buildHomeAction(theme);
+        appBarActions = [_buildProfileAvatarAction(theme)];
+        bodyContent = StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _bookingsStream,
+          builder: (context, snapshot) {
+             if (snapshot.connectionState == ConnectionState.waiting) {
+               return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+             }
+             final bookings = (snapshot.data ?? []).map((data) => Booking.fromMap(data)).toList();
+             
+             return DefaultTabController(
+              length: 3,
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage: _avatarUrl != null && !_isUploading ? NetworkImage(_avatarUrl!) : null,
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                    child: _isUploading
-                        ? CircularProgressIndicator(color: theme.colorScheme.primary)
-                        : (_avatarUrl == null
-                            ? Icon(Icons.person, size: 50, color: theme.colorScheme.primary)
-                            : null),
+                  TabBar(
+                    labelColor: theme.colorScheme.primary,
+                    unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+                    indicatorColor: theme.colorScheme.primary,
+                    tabs: const [
+                      Tab(text: "Upcoming"),
+                      Tab(text: "Completed"),
+                      Tab(text: "Cancelled"),
+                    ],
                   ),
-                  SizedBox(
-                    height: 40,
-                    width: 40,
-                    child: ElevatedButton(
-                      onPressed: _isUploading ? null : _onUploadAvatar,
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: EdgeInsets.zero,
-                        backgroundColor: theme.colorScheme.surface,
-                        elevation: 2,
-                      ),
-                      child: Icon(Icons.edit, size: 20, color: theme.colorScheme.primary),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildBookingsList(theme, bookings.where((b) => b.status == 'Upcoming' || b.status == 'Pending').toList()),
+                        _buildBookingsList(theme, bookings.where((b) => b.status == 'Completed').toList()),
+                        _buildBookingsList(theme, bookings.where((b) => b.status == 'Cancelled').toList()),
+                      ],
                     ),
-                  ),
+                  )
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(_userName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-              Text(_userEmail, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6))),
-              const SizedBox(height: 32),
-              _buildProfileItem(theme, Icons.settings_outlined, 'Settings'),
-              _buildProfileItem(theme, Icons.help_outline, 'Help & Support'),
-              _buildProfileItem(theme, Icons.logout, 'Logout', isDestructive: true),
-            ],
-          ),
+            );
+          }
+        );
+        break;
+      case 4:
+        appBarTitle = Text('Financial Overview', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
+        leadingWidget = _buildHomeAction(theme);
+        appBarActions = [_buildProfileAvatarAction(theme)];
+        bodyContent = StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _bookingsStream,
+          builder: (context, snapshot) {
+            final bookings = (snapshot.data ?? []).map((data) => Booking.fromMap(data)).toList();
+            
+            // Calculate Total Balance
+            double totalBalance = bookings.where((b) => b.status != 'Cancelled').fold(0.0, (sum, b) => sum + b.amount);
+
+            // Calculate Revenue Trend (Last 7 Days)
+            List<Map<String, dynamic>> trendData = [];
+            DateTime now = DateTime.now();
+            double maxDaily = 1.0; // Avoid division by zero
+
+            for (int i = 6; i >= 0; i--) {
+              DateTime day = now.subtract(Duration(days: i));
+              double dailyTotal = bookings.where((b) => 
+                b.checkIn.year == day.year && 
+                b.checkIn.month == day.month && 
+                b.checkIn.day == day.day &&
+                b.status != 'Cancelled'
+              ).fold(0.0, (sum, b) => sum + b.amount);
+              
+              if (dailyTotal > maxDaily) maxDaily = dailyTotal;
+              
+              String dayLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day.weekday - 1];
+              trendData.add({'label': dayLabel, 'amount': dailyTotal});
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFinancialSummary(theme, totalBalance),
+                  const SizedBox(height: 24),
+                  Text("Revenue Trend", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 200,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: theme.colorScheme.secondary, borderRadius: BorderRadius.circular(12)),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: trendData.map((data) {
+                        return _buildBar(theme, data['amount'] / maxDaily, data['label']);
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text("Payout History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                  const SizedBox(height: 12),
+                  _buildPayoutHistory(theme),
+                ],
+              ),
+            );
+          }
         );
         break;
       default:
-        appBarTitle = Text('Hotel Dashboard', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold));
+        appBarTitle = Text('Dashboard', style: TextStyle(color: theme.colorScheme.primary));
         bodyContent = Container();
     }
 
@@ -537,6 +726,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
         title: appBarTitle,
         backgroundColor: theme.scaffoldBackgroundColor,
         centerTitle: centerTitle,
+        leading: leadingWidget,
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.primary),
         actions: appBarActions,
@@ -551,9 +741,11 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Overview'),
+          BottomNavigationBarItem(icon: Icon(Icons.hotel_outlined), activeIcon: Icon(Icons.hotel), label: 'Hotels'),
           BottomNavigationBarItem(icon: Icon(Icons.bed_outlined), activeIcon: Icon(Icons.bed), label: 'Rooms'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Bookings'),
+          BottomNavigationBarItem(icon: Icon(Icons.monetization_on_outlined), activeIcon: Icon(Icons.monetization_on), label: 'Earnings'),
         ],
       ),
     );
@@ -693,6 +885,242 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
     );
   }
 
+  Widget _buildHomeAction(ThemeData theme) {
+    return IconButton(
+      icon: const Icon(Icons.home),
+      tooltip: 'Go to Home',
+      onPressed: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileAvatarAction(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16.0),
+      child: GestureDetector(
+        onTap: () {
+           Navigator.push(context, MaterialPageRoute(builder: (_) => _ProfileView(
+             userName: _userName, 
+             userEmail: _userEmail, 
+             avatarUrl: _avatarUrl, 
+             isUploading: _isUploading,
+             onUpload: _onUploadAvatar,
+             theme: theme
+           )));
+        },
+        child: CircleAvatar(
+          backgroundColor: theme.colorScheme.primary,
+          backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+          child: _avatarUrl == null ? Text(_userName.isNotEmpty ? _userName[0].toUpperCase() : 'M', style: TextStyle(color: theme.colorScheme.onPrimary)) : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverviewCards(ThemeData theme, int rooms, int bookings, double revenue, double occupancy) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            _buildStatCard(theme, 'Active Bookings', bookings.toString(), Icons.book_online, color: Colors.blue),
+            _buildStatCard(theme, 'Today\'s Revenue', _formatCurrency(revenue), Icons.attach_money, color: Colors.green),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _buildStatCard(theme, 'Total Rooms', rooms.toString(), Icons.meeting_room),
+            _buildStatCard(theme, 'Occupancy Rate', '${occupancy.toStringAsFixed(1)}%', Icons.pie_chart, color: Colors.orange),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationsList(ThemeData theme) {
+    if (_notificationsStream == null) {
+      return Text("No notifications", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)));
+    }
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _notificationsStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Text("Unable to load notifications.", style: TextStyle(color: theme.colorScheme.error));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+        }
+        final notifications = snapshot.data ?? [];
+        if (notifications.isEmpty) {
+          return Text("No notifications", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)));
+        }
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            final notification = notifications[index];
+            return Card(
+              color: theme.colorScheme.secondary,
+              margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              child: ListTile(
+                leading: Icon(Icons.notifications_active, color: theme.colorScheme.primary, size: 20),
+                title: Text(notification['message'] ?? 'Notification', style: TextStyle(color: theme.colorScheme.onSecondary, fontSize: 14)),
+                subtitle: notification['created_at'] != null
+                    ? Text(_formatDate(DateTime.parse(notification['created_at'])), style: TextStyle(fontSize: 10, color: theme.colorScheme.onSecondary.withOpacity(0.6)))
+                    : null,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildHotelCard(ThemeData theme, Hotel hotel) {
+    return Card(
+      color: theme.colorScheme.secondary,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: hotel.imageUrl.isNotEmpty
+                ? Image.network(hotel.imageUrl, fit: BoxFit.cover)
+                : Icon(Icons.hotel, size: 50, color: Colors.grey[600]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(hotel.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSecondary)),
+                    Row(
+                      children: [
+                        Icon(Icons.star, color: Colors.amber, size: 16),
+                        Text(hotel.rating.toString(), style: TextStyle(color: theme.colorScheme.onSecondary)),
+                      ],
+                    )
+                  ],
+                ),
+                Text(hotel.address, style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
+                const SizedBox(height: 8),
+                Text('${hotel.roomCount} Rooms', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingsList(ThemeData theme, List<Booking> bookings) {
+    if (bookings.isEmpty) {
+      return Center(child: Text("No bookings found.", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5))));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: bookings.length,
+      itemBuilder: (context, index) {
+        final booking = bookings[index];
+        return Card(
+          color: theme.colorScheme.secondary,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            title: Text(booking.guestName, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSecondary)),
+            subtitle: Text('${_formatDate(booking.checkIn)} - ${_formatDate(booking.checkOut)}', style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(_formatCurrency(booking.amount), style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                Text(booking.status, style: TextStyle(color: booking.status == 'Confirmed' ? Colors.green : Colors.orange, fontSize: 12)),
+              ],
+            ),
+            onTap: () {
+              // Show details dialog
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFinancialSummary(ThemeData theme, double totalBalance) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [theme.colorScheme.primary, theme.colorScheme.primary.withOpacity(0.8)]),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Total Balance", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  Text(_formatCurrency(totalBalance), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const Icon(Icons.account_balance_wallet, color: Colors.white, size: 40),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBar(ThemeData theme, double heightFactor, String label) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          width: 20,
+          height: 150 * heightFactor,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: theme.colorScheme.onSecondary, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildPayoutHistory(ThemeData theme) {
+    return Column(
+      children: [1, 2, 3].map((i) => Card(
+        color: theme.colorScheme.secondary,
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          leading: CircleAvatar(backgroundColor: Colors.green.withOpacity(0.1), child: const Icon(Icons.arrow_downward, color: Colors.green)),
+          title: Text("Payout #$i", style: TextStyle(color: theme.colorScheme.onSecondary)),
+          subtitle: Text("Processed on ${_formatDate(DateTime.now().subtract(Duration(days: i*5)))}", style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.6))),
+          trailing: Text(_formatCurrency(500.0 * i), style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSecondary)),
+        ),
+      )).toList(),
+    );
+  }
+
   Widget _buildRoomsList(ThemeData theme, List<HotelRoom> rooms) {
     return ListView.builder(
       shrinkWrap: true,
@@ -775,6 +1203,117 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                   MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
             }
           });
+        }
+      },
+    );
+  }
+}
+
+class _ProfileView extends StatelessWidget {
+  final String userName;
+  final String userEmail;
+  final String? avatarUrl;
+  final bool isUploading;
+  final VoidCallback onUpload;
+  final ThemeData theme;
+
+  const _ProfileView({
+    required this.userName,
+    required this.userEmail,
+    required this.avatarUrl,
+    required this.isUploading,
+    required this.onUpload,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Profile"), backgroundColor: theme.scaffoldBackgroundColor, iconTheme: IconThemeData(color: theme.colorScheme.primary)),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage: avatarUrl != null && !isUploading ? NetworkImage(avatarUrl!) : null,
+                    backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                    child: isUploading
+                        ? CircularProgressIndicator(color: theme.colorScheme.primary)
+                        : (avatarUrl == null
+                            ? Icon(Icons.person, size: 50, color: theme.colorScheme.primary)
+                            : null),
+                  ),
+                  SizedBox(
+                    height: 40,
+                    width: 40,
+                    child: ElevatedButton(
+                      onPressed: isUploading ? null : onUpload,
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: EdgeInsets.zero,
+                        backgroundColor: theme.colorScheme.surface,
+                        elevation: 2,
+                      ),
+                      child: Icon(Icons.edit, size: 20, color: theme.colorScheme.primary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(userName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              Text(userEmail, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+              const SizedBox(height: 32),
+              _buildProfileItem(context, theme, Icons.settings_outlined, 'Settings'),
+              _buildProfileItem(context, theme, Icons.help_outline, 'Help & Support'),
+              _buildProfileItem(context, theme, Icons.logout, 'Logout', isDestructive: true),
+            ],
+          ),
+        ),
+    );
+  }
+
+  Widget _buildProfileItem(BuildContext context, ThemeData theme, IconData icon, String title, {bool isDestructive = false}) {
+    return ListTile(
+      leading: Icon(icon, color: isDestructive ? Colors.red : theme.colorScheme.primary),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isDestructive ? Colors.red : theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing: Icon(Icons.arrow_forward_ios, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+      onTap: () async {
+        if (title == 'Logout') {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: theme.colorScheme.surface,
+              title: Text('Logout?', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+              content: Text('Are you sure you want to logout?', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.8))),
+              actions: [
+                TextButton(
+                  child: Text('No', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+                  onPressed: () => Navigator.pop(ctx, false),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                  child: const Text('Yes', style: TextStyle(color: Colors.white)),
+                  onPressed: () => Navigator.pop(ctx, true),
+                ),
+              ],
+            ),
+          );
+          if (confirm == true && context.mounted) {
+            await Supabase.instance.client.auth.signOut();
+            Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+          }
         }
       },
     );

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart';
@@ -55,9 +56,16 @@ class _LoginScreenState extends State<LoginScreen> {
       } on AuthException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
-      } catch (e) {
+      } catch (e, stackTrace) {
+        debugPrint('Login error: $e\n$stackTrace');
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An unexpected error occurred'), backgroundColor: Colors.red));
+        String errorMessage;
+        if (e is SocketException) {
+          errorMessage = 'No internet connection. Please check your network and try again.';
+        } else {
+          errorMessage = 'Login failed: ${e.toString()}';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage), backgroundColor: Colors.red));
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }

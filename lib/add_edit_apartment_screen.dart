@@ -118,6 +118,7 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
   }
 
   Future<void> _fetchExistingImages() async {
+    if (widget.editingApartment == null) return;
     try {
       final response = await Supabase.instance.client
           .from('apartments')
@@ -126,8 +127,12 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
           .maybeSingle();
 
       if (response != null && response['images'] != null) {
+        final List<dynamic> rawImages = response['images'];
         setState(() {
-          _existingImages = List<String>.from(response['images']);
+          _existingImages = rawImages
+              .where((item) => item != null && item is String && item.toString().isNotEmpty)
+              .map((item) => item.toString())
+              .toList();
         });
       } else if (_imageUrlController.text.isNotEmpty) {
         setState(() {
@@ -161,6 +166,8 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
   }
 
   Future<void> _removeExistingImage(String url) async {
+    if (url.isEmpty) return;
+
     setState(() {
       _existingImages.remove(url);
     });
@@ -170,19 +177,26 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
       
       // Attempt to extract file path and delete from storage
       // Expected URL format: .../apartment-images/filename
-      final uri = Uri.parse(url);
-      final pathSegments = uri.pathSegments;
-      final bucketIndex = pathSegments.indexOf('apartment-images');
-      
-      if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
-         final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
-         await supabase.storage.from('apartment-images').remove([filePath]);
+      if (url.startsWith('http')) {
+        try {
+          final uri = Uri.parse(url);
+          final pathSegments = uri.pathSegments;
+          final bucketIndex = pathSegments.indexOf('apartment-images');
+          
+          if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
+             final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
+             await supabase.storage.from('apartment-images').remove([filePath]);
+          }
+        } catch (e) {
+          debugPrint('Error parsing URL for deletion: $e');
+        }
       }
 
       // Update database row immediately
-      final String newCover = _existingImages.isNotEmpty ? _existingImages.first : '';
+      final validImages = _existingImages.where((img) => img.isNotEmpty).toList();
+      final String newCover = validImages.isNotEmpty ? validImages.first : '';
       await supabase.from('apartments').update({
-        'images': _existingImages,
+        'images': validImages,
         'image_url': newCover,
       }).eq('id', widget.editingApartment!.id);
 
@@ -439,11 +453,17 @@ Future<void> _saveApartment() async {
 
     // 1. Existing images from DB
     for (var path in _existingImages) {
+      if (path.isEmpty) continue;
       Widget imageWidget;
+      
+      // Strict check to ensure we only use Image.network for valid web URLs
       if (path.startsWith('http')) {
         imageWidget = Image.network(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image));
-      } else {
+      } else if (path.startsWith('assets/')) {
         imageWidget = Image.asset(path, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image));
+      } else {
+        // Fallback for unexpected strings to avoid crashes
+        imageWidget = Container(color: Colors.grey[300], child: const Icon(Icons.broken_image));
       }
       
       List<Widget> stackChildren = [

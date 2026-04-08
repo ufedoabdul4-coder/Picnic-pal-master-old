@@ -41,9 +41,10 @@ class _HotelManagerLoginScreenState extends State<HotelManagerLoginScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
+        debugPrint('Hotel Manager login error: $e\n$stackTrace');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An unexpected error occurred'), backgroundColor: Colors.red));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: ${e.toString()}'), backgroundColor: Colors.red));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);

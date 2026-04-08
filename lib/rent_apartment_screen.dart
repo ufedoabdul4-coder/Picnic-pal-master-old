@@ -8,6 +8,7 @@ class Apartment {
   final String description;
   final double price;
   final String imageUrl;
+  final List<String> images;
   final String managerId;
   final DateTime dateAdded;
   final bool isVerified;
@@ -30,6 +31,7 @@ class Apartment {
     required this.description,
     required this.price,
     required this.imageUrl,
+    required this.images,
     required this.managerId,
     required this.dateAdded,
     required this.isVerified,
@@ -54,6 +56,11 @@ class Apartment {
       description: map['description'] ?? '',
       price: (map['price'] as num?)?.toDouble() ?? 0.0,
       imageUrl: map['image_url'] ?? '',
+      images: (map['images'] as List?)
+              ?.where((item) => item != null && item is String && item.isNotEmpty)
+              .map((item) => item as String)
+              .toList() ??
+          [],
       managerId: map['manager_id'] ?? '',
       dateAdded: map['created_at'] != null ? DateTime.parse(map['created_at']) : DateTime.now(),
       isVerified: map['is_verified'] ?? false,
@@ -78,6 +85,7 @@ class Apartment {
       'description': description,
       'price': price,
       'image_url': imageUrl,
+      'images': images,
       'manager_id': managerId,
       'property_type': propertyType,
       'bedrooms': bedrooms,
@@ -164,7 +172,7 @@ class _RentApartmentScreenState extends State<RentApartmentScreen> {
         stream: _apartmentsStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error loading apartments: ${snapshot.error}'));
+            return Center(child: Text('Unable to load apartments. Please check your internet connection.'));
           }
           if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
@@ -236,14 +244,31 @@ class _RentApartmentScreenState extends State<RentApartmentScreen> {
   }
 }
 
-class ApartmentDetailsScreen extends StatelessWidget {
+class ApartmentDetailsScreen extends StatefulWidget {
   final Apartment apartment;
 
   const ApartmentDetailsScreen({super.key, required this.apartment});
 
   @override
+  State<ApartmentDetailsScreen> createState() => _ApartmentDetailsScreenState();
+}
+
+class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
+  int _currentImageIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final apartment = widget.apartment;
     final theme = Theme.of(context);
+    
+    // Combine cover image and gallery images, ensuring unique list
+    final List<String> displayImages = [];
+    if (apartment.images.isNotEmpty) {
+      displayImages.addAll(apartment.images);
+    } else if (apartment.imageUrl.isNotEmpty) {
+      displayImages.add(apartment.imageUrl);
+    }
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -255,24 +280,68 @@ class ApartmentDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (apartment.imageUrl.isNotEmpty)
-              Image.network(
-                apartment.imageUrl,
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 250,
-                  color: Colors.grey,
-                  child: const Center(child: Icon(Icons.image_not_supported, size: 50, color: Colors.white)),
-                ),
+            // Image Gallery
+            if (displayImages.isNotEmpty)
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: PageView.builder(
+                      itemCount: displayImages.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentImageIndex = index);
+                      },
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => _FullScreenGallery(
+                                  images: displayImages,
+                                  initialIndex: index,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Image.network(
+                            displayImages[index],
+                            width: double.infinity,
+                            height: 300,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              height: 300,
+                              color: Colors.grey,
+                              child: const Center(child: Icon(Icons.image_not_supported, size: 50, color: Colors.white)),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (displayImages.length > 1)
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "${_currentImageIndex + 1} / ${displayImages.length}",
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
               )
             else
               Container(
-                height: 250,
+                height: 300,
                 color: Colors.grey,
                 child: const Center(child: Icon(Icons.image_not_supported, size: 50, color: Colors.white)),
               ),
+
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -294,28 +363,79 @@ class ApartmentDetailsScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // Address and Estate Name
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(Icons.location_on, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.7)),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          apartment.address,
-                          style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              apartment.address,
+                              style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                            ),
+                            if (apartment.estateName.isNotEmpty)
+                              Text(
+                                apartment.estateName,
+                                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                              ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
+                  
+                  // Key Stats
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatItem(Icons.bed, '${apartment.bedrooms} Beds', theme),
                       _buildStatItem(Icons.bathtub, '${apartment.bathrooms} Baths', theme),
+                      _buildStatItem(Icons.wc, '${apartment.toilets} Toilets', theme),
                       if (apartment.sizeSqm > 0) _buildStatItem(Icons.square_foot, '${apartment.sizeSqm} m²', theme),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  // Property Details
+                  Text("Property Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _buildDetailChip(theme, "Type", apartment.propertyType),
+                      _buildDetailChip(theme, "Condition", apartment.condition),
+                      _buildDetailChip(theme, "Furnishing", apartment.furnishing),
+                    ],
+                  ),
+
+                  if (apartment.amenities.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text("Amenities", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: apartment.amenities.map((amenity) {
+                        return Chip(
+                          label: Text(amenity),
+                          backgroundColor: theme.colorScheme.secondary,
+                          labelStyle: TextStyle(color: theme.colorScheme.onSecondary),
+                          side: BorderSide.none,
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
                   const SizedBox(height: 24),
+                  // Description
                   Text(
                     "Description",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
@@ -350,6 +470,25 @@ class ApartmentDetailsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildDetailChip(ThemeData theme, String label, String value) {
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondary.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatItem(IconData icon, String label, ThemeData theme) {
     return Column(
       children: [
@@ -360,3 +499,55 @@ class ApartmentDetailsScreen extends StatelessWidget {
     );
   }
 }
+
+class _FullScreenGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenGallery({required this.images, required this.initialIndex});
+
+  @override
+  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
+}
+
+class _FullScreenGalleryState extends State<_FullScreenGallery> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text('${_currentIndex + 1} / ${widget.images.length}', style: const TextStyle(color: Colors.white)),
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.images.length,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (context, index) {
+          return InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: Image.network(
+                widget.images[index],
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_not_supported, color: Colors.white, size: 50),
+              ),
+            ),
+          );
+          },
+        ),
+      );
+    }
+  }

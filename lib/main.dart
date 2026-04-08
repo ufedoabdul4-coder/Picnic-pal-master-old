@@ -10,8 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
-import 'profile_screen.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
+import 'profile_screen.dart';
 import 'plan_picnic_screen.dart';
 import 'chatbot_screen.dart';
 import 'map_screen.dart';
@@ -25,6 +25,9 @@ import 'book_hotel_screen.dart';
 import 'service_provider_selection_screen.dart';
 import 'service_provider_intro_screen.dart';
 
+const String kSupabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+const String kSupabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+
 // Global key to access MyApp's state for theme changes from anywhere.
 final GlobalKey<MyAppState> myAppKey = GlobalKey();
 
@@ -36,10 +39,17 @@ void main() async {
   // Hide system bars (navigation and status bar) for an immersive experience
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  // Initialize Supabase
+  // Initialize Supabase using secure compile-time environment variables.
+  if (kSupabaseUrl.isEmpty || kSupabaseAnonKey.isEmpty) {
+    throw StateError(
+      'Supabase configuration is missing. Start the app with --dart-define=SUPABASE_URL=<your-url> ' 
+      'and --dart-define=SUPABASE_ANON_KEY=<your-anon-key>.',
+    );
+  }
+
   await Supabase.initialize(
-    url: 'https://zrxrtpcpvbowkzxcvdbq.supabase.co', // Replace with your actual Project URL
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyeHJ0cGNwdmJvd2t6eGN2ZGJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODUzOTksImV4cCI6MjA4NDg2MTM5OX0.WcjmbXhdVdZpWqs-iMmVRsuuOXC436NUOm02XvefT0E', // Replace with your actual Anon Key
+    url: kSupabaseUrl,
+    anonKey: kSupabaseAnonKey,
   );
 
   // Initialize Google Maps Renderer to the latest version to avoid legacy warnings
@@ -108,7 +118,7 @@ class MyAppState extends State<MyApp> {
     final lightTheme = ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: const Color(0xFF042C20),
-      primaryColor: const Color(0xFFD4A017),
+      primaryColor: const Color.fromARGB(255, 212, 160, 23),
       colorScheme: const ColorScheme.light(
         primary: Color(0xFFD4A017),
         onPrimary: Color(0xFF042C20), // Dark green text on gold buttons
@@ -143,24 +153,24 @@ class MyAppState extends State<MyApp> {
       ),
     );
 
-    // The new "Teal" theme
-    final tealTheme = ThemeData(
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255), // Off-White / Bone
-      primaryColor: const Color(0xFF136B6B), // Deep Teal
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFF136B6B), // Deep Teal
-        onPrimary: Colors.white, // White text on buttons
-        surface: Colors.white, // White cards for contrast against off-white bg
-        onSurface: Color(0xFF333333), // Dark Charcoal Grey
-        secondary: Colors.white, // White backgrounds for inputs
-        onSecondary: Color(0xFF333333), // Dark Charcoal text on inputs
-        tertiary: Color(0xFFF27D52), // Coral / Burnt Orange (Accent)
+    // The new "Espresso" theme
+    final espressoTheme = ThemeData(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF1C1615), // Black Coffee
+      primaryColor: const Color(0xFF433633), // Roasted Espresso
+      colorScheme: const ColorScheme.dark(
+      primary: Color(0xFFD1C7BB), // Roasted Espresso
+      onPrimary: Color(0xFF433633), // White text for high contrast on buttons
+      surface: Color(0xFF2A2420), // Slightly lighter than background
+      onSurface: Color(0xFFD1C7BB), // Champagne for clear readability
+      secondary: Color(0xFF2A2420), // Dark surface for inputs
+      onSecondary: Color(0xFFD1C7BB), // Champagne for text on inputs
+      tertiary: Color(0xFF8E7970), // Muted Taupe for subtle accents
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color.fromARGB(255, 255, 255, 255), // Match background
-        elevation: 0,
-        iconTheme: IconThemeData(color: Color(0xFF136B6B)), // Teal icons
+      backgroundColor: Color(0xFF1C1615), // Black Coffee
+      elevation: 0,
+      iconTheme: IconThemeData(color: Color(0xFFE5D3B3)), // Champagne for brighter icons
       ),
     );
 
@@ -168,7 +178,7 @@ class MyAppState extends State<MyApp> {
       'Quivvo': lightTheme,
       'Dark': darkTheme,
       'Light': originTheme, // Renamed "Origin" to "Light"
-      'Teal': tealTheme,
+      'Espresso': espressoTheme,
     };
 
     // The MaterialApp should be the root. It will handle theme changes internally
