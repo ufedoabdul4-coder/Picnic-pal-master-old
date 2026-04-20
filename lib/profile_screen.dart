@@ -22,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
   String _userName = "User";
+  String _fullUserName = "";
   String _userEmail = "";
   String _joinDateString = "";
   String? _avatarUrl;
@@ -51,6 +52,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         fullName = metadata['first_name'] ?? metadata['full_name'] ?? metadata['name'] ?? "User";
       }
       
+      _fullUserName = fullName;
+
       if (fullName != "User" && fullName.isNotEmpty) {
         _userName = fullName.split(' ').first;
       }
@@ -73,10 +76,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final imagePath = prefs.getString('profile_image_path_${user.id}');
-    if (imagePath != null && mounted && File(imagePath).existsSync()) {
-      setState(() {
-        _profileImage = File(imagePath);
-      });
+    if (imagePath != null && File(imagePath).existsSync()) {
+      if (mounted) {
+        setState(() {
+          _profileImage = File(imagePath);
+        });
+      }
     }
   }
 
@@ -108,14 +113,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint("Error fetching profile: $e");
     }
 
-    // Extract first name
-    if (fullName != "User" && fullName.isNotEmpty) {
-      fullName = fullName.split(' ').first;
-    }
-
     if (mounted) {
       setState(() {
-        _userName = fullName;
+        _fullUserName = fullName;
+        _userName = fullName != "User" && fullName.isNotEmpty ? fullName.split(' ').first : fullName;
         _userEmail = user.email ?? 'No Email';
         _avatarUrl = avatarUrl;
       });
@@ -547,8 +548,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const EventsPage()));
                 }
                 if (title == "Edit Profile") {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()))
-                      .then((value) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(initialName: _fullUserName, initialEmail: _userEmail),
+                    ),
+                  ).then((value) {
                     // Reload data if the page was popped with an update signal
                     if (value == true) _loadUserData();
                   });

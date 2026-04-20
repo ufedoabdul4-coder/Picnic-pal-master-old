@@ -24,8 +24,8 @@ class ChatSession {
 
   factory ChatSession.fromJson(Map<String, dynamic> json) {
     return ChatSession(
-      id: json['id'],
-      title: json['title'],
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled Chat',
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
       messages: (json['messages'] as List).map((m) => ChatMessage.fromJson(m)).toList(),
     );
@@ -48,8 +48,8 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      text: json['text'],
-      isUser: json['isUser'],
+      text: json['text']?.toString() ?? '',
+      isUser: json['isUser'] ?? false,
     );
   }
 

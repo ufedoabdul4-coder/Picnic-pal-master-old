@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'rent_apartment_screen.dart'; // Import to use the Apartment model
 import 'package:intl/intl.dart';
+import 'agent_chat_screen.dart';
 
 class ApartmentDetailsScreen extends StatelessWidget {
   final Apartment apartment;
@@ -158,20 +159,48 @@ class ApartmentDetailsScreen extends StatelessWidget {
                   ],
 
                   // Contact Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.phone),
-                      label: const Text('Contact Agent'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.phone),
+                          label: const Text('Call Agent'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AgentChatScreen(
+                                  apartment: apartment,
+                                  managerName: "Agent", // Or fetch manager name if available
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.message_outlined),
+                          label: const Text('Message'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.colorScheme.primary,
+                            side: BorderSide(color: theme.colorScheme.primary),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                 ],

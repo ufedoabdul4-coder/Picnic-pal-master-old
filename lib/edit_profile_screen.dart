@@ -2,9 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  final String initialName;
+  final String initialEmail;
+
+  const EditProfileScreen({super.key, required this.initialName, required this.initialEmail});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -20,6 +24,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController.text = widget.initialName;
+    _emailController.text = widget.initialEmail;
     _loadUserData();
   }
 
@@ -31,13 +37,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
     final prefs = await SharedPreferences.getInstance();
-    final imagePath = prefs.getString('profile_image_path');
+    final imagePath = prefs.getString('profile_image_path_${user.id}');
     if (mounted) {
       setState(() {
-        _nameController.text = prefs.getString('user_name') ?? 'Jamal-din';
-        _emailController.text = prefs.getString('user_email') ?? 'samuel@example.com';
-        if (imagePath != null) {
+        if (imagePath != null && File(imagePath).existsSync()) {
           _profileImage = File(imagePath);
         }
         _isLoading = false;
@@ -58,19 +65,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState?.validate() ?? false) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', _nameController.text);
-      await prefs.setString('user_email', _emailController.text);
-      if (_profileImage != null) {
-        await prefs.setString('profile_image_path', _profileImage!.path);
-      }
+      setState(() => _isLoading = true);
+      try {
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user == null) return;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
-        );
-        // Pop with 'true' to signal the profile screen to reload data
-        Navigator.of(context).pop(true);
+        // Update Supabase - This ensures the change persists and is visible on ProfileScreen
+        await Supabase.instance.client.from('profiles').update({
+          'full_name': _nameController.text,
+          'first_name': _nameController.text.split(' ').first,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', user.id);
+
+        // Update local preferences as a cache
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', _nameController.text);
+        
+        if (_profileImage != null) {
+          await prefs.setString('profile_image_path_${user.id}', _profileImage!.path);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
+          );
+          // Pop with 'true' to signal the profile screen to reload data via its .then() block
+          Navigator.of(context).pop(true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update profile: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }

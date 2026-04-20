@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'rent_apartment_screen.dart'; // For Apartment model and mock data
 import 'add_edit_apartment_screen.dart';
+import 'manager_inbox_screen.dart'; // Import the new ManagerInboxScreen
 import 'main.dart';
 
 class ApartmentManagerDashboardScreen extends StatefulWidget {
@@ -94,6 +95,10 @@ class _ApartmentManagerDashboardScreenState extends State<ApartmentManagerDashbo
             onPressed: () {
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagerInboxScreen())),
           ),
         ],
       ),

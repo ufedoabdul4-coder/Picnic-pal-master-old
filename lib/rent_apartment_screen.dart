@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'booking_screen.dart'; // Import the new booking screen
+import 'chatbot_screen.dart';
+import 'agent_chat_screen.dart';
 
 class Apartment {
   final String id;
@@ -10,6 +13,7 @@ class Apartment {
   final String imageUrl;
   final List<String> images;
   final String managerId;
+  final String? managerName;
   final DateTime dateAdded;
   final bool isVerified;
   final String propertyType;
@@ -33,6 +37,7 @@ class Apartment {
     required this.imageUrl,
     required this.images,
     required this.managerId,
+    this.managerName,
     required this.dateAdded,
     required this.isVerified,
     required this.propertyType,
@@ -62,6 +67,7 @@ class Apartment {
               .toList() ??
           [],
       managerId: map['manager_id'] ?? '',
+      managerName: map['manager_name'],
       dateAdded: map['created_at'] != null ? DateTime.parse(map['created_at']) : DateTime.now(),
       isVerified: map['is_verified'] ?? false,
       propertyType: map['property_type'] ?? 'Apartment',
@@ -255,6 +261,35 @@ class ApartmentDetailsScreen extends StatefulWidget {
 
 class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
   int _currentImageIndex = 0;
+  String? _managerName;
+  String? _managerAvatarUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _managerName = widget.apartment.managerName;
+    if (_managerName == null) {
+      _fetchManagerName();
+    }
+  }
+
+  Future<void> _fetchManagerName() async {
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', widget.apartment.managerId)
+          .maybeSingle();
+      if (mounted && data != null) {
+        setState(() {
+          _managerName = data['full_name'] as String?;
+          _managerAvatarUrl = data['avatar_url'] as String?;
+        });
+      }
+    } catch (e) {
+      // Silence error if profile cannot be fetched
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -445,12 +480,82 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
                     apartment.description,
                     style: TextStyle(fontSize: 16, height: 1.5, color: theme.colorScheme.onSurface.withOpacity(0.9)),
                   ),
-                  const SizedBox(height: 24),
+                  if (_managerName != null) ...[
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserPostingsScreen(
+                              userId: apartment.managerId,
+                              userName: _managerName ?? "User",
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: theme.colorScheme.secondary,
+                              backgroundImage: _managerAvatarUrl != null
+                                  ? NetworkImage(_managerAvatarUrl!)
+                                  : null,
+                              child: _managerAvatarUrl == null
+                                  ? Icon(Icons.person, size: 16, color: theme.colorScheme.primary)
+                                  : null,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              "$_managerName",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AgentChatScreen(
+                              apartment: apartment,
+                              managerName: _managerName ?? "Agent",
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text("Message Agent", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.primary,
+                        side: BorderSide(color: theme.colorScheme.primary, width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Booking feature coming soon!")));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => BookingScreen(
+                          apartment: apartment,
+                        )));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
@@ -551,3 +656,68 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
       );
     }
   }
+
+class UserPostingsScreen extends StatelessWidget {
+  final String userId;
+  final String userName;
+
+  const UserPostingsScreen({super.key, required this.userId, required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final postingsStream = Supabase.instance.client
+        .from('apartments')
+        .stream(primaryKey: ['id'])
+        .eq('manager_id', userId)
+        .order('created_at');
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text("$userName's Postings", style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.primary),
+      ),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: postingsStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Unable to load postings.'));
+          }
+          if (!snapshot.hasData) {
+            return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+          }
+          
+          final apartments = snapshot.data!.map((map) => Apartment.fromMap(map)).toList();
+
+          if (apartments.isEmpty) {
+            return const Center(child: Text('No postings found for this user.'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: apartments.length,
+            itemBuilder: (context, index) {
+              final apartment = apartments[index];
+              return Card(
+                color: theme.colorScheme.secondary,
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(apartment.imageUrl, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (c, o, s) => const Icon(Icons.home)),
+                  ),
+                  title: Text(apartment.title, style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
+                  subtitle: Text("\$${apartment.price}/night", style: TextStyle(color: theme.colorScheme.onSecondary.withOpacity(0.7))),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ApartmentDetailsScreen(apartment: apartment))),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

@@ -34,23 +34,6 @@ final GlobalKey<MyAppState> myAppKey = GlobalKey();
 void main() async {
   // This is required to ensure that Flutter's bindings are initialized
   // before any async operations are performed in main.
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Hide system bars (navigation and status bar) for an immersive experience
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-  // Initialize Supabase using secure compile-time environment variables.
-  if (kSupabaseUrl.isEmpty || kSupabaseAnonKey.isEmpty) {
-    throw StateError(
-      'Supabase configuration is missing. Start the app with --dart-define=SUPABASE_URL=<your-url> ' 
-      'and --dart-define=SUPABASE_ANON_KEY=<your-anon-key>.',
-    );
-  }
-
-  await Supabase.initialize(
-    url: kSupabaseUrl,
-    anonKey: kSupabaseAnonKey,
-  );
 
   // Initialize Google Maps Renderer to the latest version to avoid legacy warnings
   final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;
@@ -503,6 +486,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // This assumes you have a 'venues' table with relevant columns.
       final response = await Supabase.instance.client.from('venues').select();
 
+    if (!mounted) return;
+
     setState(() {
       _allApiPlaces = hardcodedPlaces;
       _recommendedPlaces = recommended;
@@ -523,6 +508,8 @@ class _HomeScreenState extends State<HomeScreen> {
           longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
         );
       }).toList();
+
+      if (!mounted) return;
 
       if (providerVenues.isEmpty && mounted) {
         setState(() {
@@ -741,7 +728,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              Text('Recommended Venues',
+              Text('Top Picks for You',
                   style: TextStyle(fontSize: 18, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10), 
               SizedBox(height: 250, child: _buildVenuesWidget()),
