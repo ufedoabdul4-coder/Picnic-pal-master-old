@@ -16,7 +16,7 @@ class _ManagerInboxScreenState extends State<ManagerInboxScreen> {
   @override
   void initState() {
     super.initState();
-    chatService.ChatService.instance.init(); // Ensure service is running
+    chatService.ChatService.instance.init();
   }
 
   @override
@@ -62,6 +62,7 @@ class _ManagerInboxScreenState extends State<ManagerInboxScreen> {
               final apartment = conv['apartment'] as Apartment;
               final otherUser = conv['other_user'];
               final lastMessage = conv['last_message'];
+              final unreadCount = conv['unread_count'] as int;
 
               return ListTile(
                 leading: CircleAvatar(
@@ -77,7 +78,20 @@ class _ManagerInboxScreenState extends State<ManagerInboxScreen> {
                     Text(lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
-                trailing: Icon(Icons.chevron_right, color: theme.colorScheme.primary),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (unreadCount > 0)
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: theme.colorScheme.primary, shape: BoxShape.circle),
+                        child: Text(unreadCount.toString(),
+                            style: TextStyle(color: theme.colorScheme.onPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    const SizedBox(height: 4),
+                    Icon(Icons.chevron_right, color: theme.colorScheme.primary, size: 20),
+                  ],
+                ),
                 onTap: () {
                   Navigator.push(
                     context,

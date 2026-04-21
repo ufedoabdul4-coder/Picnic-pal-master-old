@@ -56,7 +56,8 @@ class ChatService {
           .from('messages')
           .select('*, apartments(*), sender:profiles!sender_id(*), receiver:profiles!receiver_id(*)')
           .or('sender_id.eq.$userId,receiver_id.eq.$userId')
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          ;
 
       for (var m in data) {
         _cacheMetadata(m);
@@ -64,7 +65,11 @@ class ChatService {
       }
       _notifyListeners();
     } catch (e) {
-      debugPrint("ChatService Initial Fetch Error: $e");
+      debugPrint(
+"""INIT FETCH FAILED: 
+$e
+"""
+      );
     }
   }
 
@@ -110,16 +115,48 @@ class ChatService {
       final otherId = m['sender_id'] == userId ? m['receiver_id'] : m['sender_id'];
       final key = "${aptId}_$otherId";
 
+      bool isUnread = m['receiver_id'] == userId && (m['is_read'] ?? false) == false;
+
       if (!groups.containsKey(key)) {
         groups[key] = {
           'apartment': _apartmentCache[aptId],
           'other_user': _profileCache[otherId] ?? {'id': otherId, 'full_name': 'User'},
           'last_message': m['content'],
           'created_at': DateTime.parse(m['created_at']),
+          'unread_count': 0,
         };
+      }
+
+      if (isUnread) {
+        groups[key]!['unread_count'] = (groups[key]!['unread_count'] as int) + 1;
       }
     }
     return groups.values.toList()..sort((a, b) => b['created_at'].compareTo(a['created_at']));
+  }
+
+  Future<void> markAsRead({required String apartmentId, required String otherUserId}) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      await _client
+          .from('messages')
+          .update({'is_read': true})
+          .eq('apartment_id', apartmentId)
+          .eq('receiver_id', userId)
+          .eq('sender_id', otherUserId)
+          .eq('is_read', false);
+
+      // Update local cache state and notify UI
+      for (var m in _messages) {
+        if (m['apartment_id'] == apartmentId && m['receiver_id'] == userId && m['sender_id'] == otherUserId) {
+          m['is_read'] = true;
+        }
+      }
+      _notifyListeners();
+    } catch (e) {
+      debugPrint("Error marking messages as read: $e");
+    }
   }
 
   Future<Map<String, dynamic>> sendMessage({

@@ -5,34 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'rent_apartment_screen.dart';
 import 'chat_service.dart';
 
-class ChatService {
-  ChatService._();
-  static final ChatService instance = ChatService._();
-
-  void init() {}
-
-  Stream<List<Map<String, dynamic>>> get messagesStream => Supabase.instance.client
-      .from('messages')
-      .stream(primaryKey: ['id'])
-      .order('created_at', ascending: true);
-
-  Future<void> sendMessage({
-    required String apartmentId,
-    required String receiverId,
-    required String content,
-  }) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-
-    await Supabase.instance.client.from('messages').insert({
-      'apartment_id': apartmentId,
-      'sender_id': user.id,
-      'receiver_id': receiverId,
-      'content': content,
-    });
-  }
-}
-
 class AgentChatScreen extends StatefulWidget {
   final Apartment apartment;
   final String managerName;
@@ -177,6 +149,10 @@ class _AgentChatScreenState extends State<AgentChatScreen> {
                 // Trigger scroll to bottom on new data
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToBottom();
+                  ChatService.instance.markAsRead(
+                    apartmentId: widget.apartment.id,
+                    otherUserId: _targetUserId,
+                  );
                 });
 
                 final allMessages = snapshot.data!;
