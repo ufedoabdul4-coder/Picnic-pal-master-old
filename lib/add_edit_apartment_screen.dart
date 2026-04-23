@@ -38,7 +38,7 @@ class _AddEditApartmentScreenState extends State<AddEditApartmentScreen> {
     'Lagos': ['Ikeja', 'Lekki', 'Victoria Island', 'Yaba', 'Surulere', 'Ikoyi', 'Ajah', 'Maryland'],
     'Rivers': ['Port Harcourt', 'Obio-Akpor', 'Eleme', 'Gra'],
   };
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
   List<String> _existingImages = [];
 
   @override
@@ -417,7 +417,7 @@ Future<void> _saveApartment() async {
 
   Widget _buildDropdown(ThemeData theme, String label, List<String> items, String currentValue, ValueChanged<String?> onChanged) {
     return DropdownButtonFormField<String>(
-      value: currentValue,
+      initialValue: currentValue,
       isExpanded: true,
       items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
       onChanged: onChanged,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'venue_model.dart';
 import '../event_planning_details_screen.dart'; // Corrected import path
-import 'plan_picnic_screen.dart'; // To reuse the picker tile
+// To reuse the picker tile
 import 'saved_venue_provider.dart';
 
 class VenueDetailsScreen extends StatefulWidget {

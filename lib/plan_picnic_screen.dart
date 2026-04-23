@@ -319,7 +319,7 @@ class _PlanPicnicScreenState extends State<PlanPicnicScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${venueName} - ${galleryType.replaceFirst(galleryType[0], galleryType[0].toUpperCase())} Views',
+              '$venueName - ${galleryType.replaceFirst(galleryType[0], galleryType[0].toUpperCase())} Views',
               style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, shadows: [Shadow(blurRadius: 2, color: Colors.black)]),
             ),
             const SizedBox(height: 10),

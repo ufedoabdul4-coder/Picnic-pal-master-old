@@ -70,11 +70,11 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
   Future<bool> sendVerificationEmail(String newEmail, String verificationCode) async {
     // Replace with your actual email sending logic
     // This is a placeholder and will not actually send emails
-    final String apiKey = 'YOUR_EMAIL_API_KEY'; // Replace with your actual API key
-    final String domain = 'YOUR_EMAIL_DOMAIN'; // Replace with your actual domain
+    const String apiKey = 'YOUR_EMAIL_API_KEY'; // Replace with your actual API key
+    const String domain = 'YOUR_EMAIL_DOMAIN'; // Replace with your actual domain
 
     final url = Uri.parse('https://api.mailgun.net/v3/$domain/messages');
-    final basicAuth = 'Basic ' + base64Encode(utf8.encode('api:$apiKey'));
+    final basicAuth = 'Basic ${base64Encode(utf8.encode('api:$apiKey'))}';
 
     try {
       final response = await http.post(

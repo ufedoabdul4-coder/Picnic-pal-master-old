@@ -1,14 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'profile_screen.dart';
@@ -19,11 +15,11 @@ import 'event_provider.dart';
 import 'login_screen.dart';
 import 'place.dart';
 import 'event_type_screen.dart'; // Import the new event type screen
-import 'venue_list_screen.dart';
 import 'rent_apartment_screen.dart';
 import 'book_hotel_screen.dart';
 import 'service_provider_selection_screen.dart';
 import 'service_provider_intro_screen.dart';
+import 'chat_service.dart';
 
 const String kSupabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
 const String kSupabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
@@ -307,6 +303,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    ChatService.instance.init();
     _pages = [
       const HomeScreen(),
 const QuivvoMapScreen(),
@@ -514,8 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final List<Place> providerVenues = (response as List).map((data) {
         return Place(
           placeId: (data['id'] ?? '').toString(),
-          name: data['name'] ?? 'Unnamed Venue',
-          description: data['description'] ?? '',
+          name: data['name'] ?? 'Unnamed Venue',          description: data['description'] ?? '',
           // Assuming 'image_url' is the column name in your Supabase table.
           // A fallback image is used if the URL is null.
           photoUrl: data['image_url'] ?? 'assets/images/central_park.jpg',
@@ -528,21 +524,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
 
-      if (providerVenues.isEmpty && mounted) {
-        setState(() {
-          _errorMessage = 'No venues from service providers found.';
-        });
-      }
-
-      // The slideshow will now feature venues from service providers.
       setState(() {
-        _allApiPlaces = providerVenues;
-        _recommendedPlaces = providerVenues;
-        _isLoading = false;
         if (providerVenues.isNotEmpty) {
-          startSlideshow();
+          _allApiPlaces = providerVenues;
+          _recommendedPlaces = providerVenues;
+        } else {
+          _allApiPlaces = hardcodedPlaces;
+          _recommendedPlaces = recommended;
         }
+        _isLoading = false;
       });
+      
+      if (_recommendedPlaces.isNotEmpty) startSlideshow();
     } catch (e) {
       debugPrint('Error fetching provider venues: $e');
       if (mounted) {

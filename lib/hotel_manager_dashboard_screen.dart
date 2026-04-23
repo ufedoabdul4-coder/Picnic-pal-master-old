@@ -220,7 +220,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: status,
+                    initialValue: status,
                     dropdownColor: theme.colorScheme.surface,
                     items: ['Available', 'Occupied', 'Cleaning']
                         .map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: theme.colorScheme.onSurface))))
@@ -297,7 +297,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   dropdownColor: theme.colorScheme.surface,
                   items: ['Available', 'Occupied', 'Cleaning']
                       .map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: theme.colorScheme.onSurface))))
@@ -1011,7 +1011,7 @@ class _HotelManagerDashboardScreenState extends State<HotelManagerDashboardScree
                     Text(hotel.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSecondary)),
                     Row(
                       children: [
-                        Icon(Icons.star, color: Colors.amber, size: 16),
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
                         Text(hotel.rating.toString(), style: TextStyle(color: theme.colorScheme.onSecondary)),
                       ],
                     )

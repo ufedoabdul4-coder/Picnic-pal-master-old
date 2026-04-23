@@ -21,10 +21,22 @@ class ChatService {
 
   RealtimeChannel? _channel;
   Timer? _statusTimer;
+  bool _isInitialized = false;
+
+  // Getters to provide immediate access to data, bypassing "loading" states
+  List<Map<String, dynamic>> get currentMessages => List.unmodifiable(_messages);
+  List<Map<String, dynamic>> get currentConversations => _groupMessagesIntoConversations();
 
   Future<void> init() async {
+    if (_isInitialized) {
+      _notifyListeners(); // Immediately send cached data to the new screen
+      return;
+    }
+
     final user = _client.auth.currentUser;
     if (user == null) return;
+
+    _isInitialized = true;
 
     // 1. Initial Fetch
     await _fetchInitialData(user.id);
@@ -59,17 +71,15 @@ class ChatService {
           .order('created_at', ascending: true)
           ;
 
+      _messages.clear();
       for (var m in data) {
         _cacheMetadata(m);
         _messages.add(m);
       }
-      _notifyListeners();
     } catch (e) {
-      debugPrint(
-"""INIT FETCH FAILED: 
-$e
-"""
-      );
+      debugPrint("INIT FETCH FAILED: $e");
+    } finally {
+      _notifyListeners(); // Always notify so the UI stops showing the loading spinner
     }
   }
 
@@ -93,8 +103,8 @@ $e
       _apartmentCache[record['apartment_id']] = Apartment.fromMap(aptData);
     }
     
-    // Avoid duplicates from optimistic updates
-    if (!_messages.any((m) => m['id'] == record['id'])) {
+    // Avoid duplicates by comparing IDs as strings (fixes the 12, 24, 32 inflation)
+    if (!_messages.any((m) => m['id'].toString() == record['id'].toString())) {
       _messages.add(record);
       _notifyListeners();
     }
@@ -108,14 +118,19 @@ $e
   List<Map<String, dynamic>> _groupMessagesIntoConversations() {
     final userId = _client.auth.currentUser?.id;
     final Map<String, Map<String, dynamic>> groups = {};
+    final Set<String> seenMessageIds = {};
 
     // Sort reversed to get latest messages first for the map keys
     for (var m in _messages.reversed) {
+      final msgId = m['id'].toString();
+      if (seenMessageIds.contains(msgId)) continue; // Safety check for duplicates
+      seenMessageIds.add(msgId);
+
       final aptId = m['apartment_id'];
       final otherId = m['sender_id'] == userId ? m['receiver_id'] : m['sender_id'];
       final key = "${aptId}_$otherId";
 
-      bool isUnread = m['receiver_id'] == userId && (m['is_read'] ?? false) == false;
+      final bool isUnread = m['receiver_id'] == userId && (m['is_read'] == false || m['is_read'] == null);
 
       if (!groups.containsKey(key)) {
         groups[key] = {
@@ -148,9 +163,10 @@ $e
           .eq('is_read', false);
 
       // Update local cache state and notify UI
-      for (var m in _messages) {
+      for (int i = 0; i < _messages.length; i++) {
+        final m = _messages[i];
         if (m['apartment_id'] == apartmentId && m['receiver_id'] == userId && m['sender_id'] == otherUserId) {
-          m['is_read'] = true;
+          _messages[i] = {...m, 'is_read': true};
         }
       }
       _notifyListeners();

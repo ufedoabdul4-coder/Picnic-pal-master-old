@@ -36,15 +36,17 @@ class _ManagerInboxScreenState extends State<ManagerInboxScreen> {
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: chatService.ChatService.instance.conversationsStream,
+        initialData: chatService.ChatService.instance.currentConversations,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
           if (snapshot.hasError || !snapshot.hasData) {
             return Center(child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Text("Error loading conversations: ${snapshot.error}"),
             ));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting && snapshot.data!.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           final conversations = snapshot.data!;

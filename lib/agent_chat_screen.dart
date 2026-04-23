@@ -141,9 +141,12 @@ class _AgentChatScreenState extends State<AgentChatScreen> {
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: ChatService.instance.messagesStream,
+              initialData: ChatService.instance.currentMessages,
               builder: (context, snapshot) {
                 if (snapshot.hasError) return const Center(child: Text("Error loading messages"));
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData || (snapshot.connectionState == ConnectionState.waiting && snapshot.data!.isEmpty)) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
                 // Filter messages to only show the conversation between current user and the target user
                 // Trigger scroll to bottom on new data

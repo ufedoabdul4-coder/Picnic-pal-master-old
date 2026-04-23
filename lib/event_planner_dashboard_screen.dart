@@ -644,7 +644,7 @@ class _RecentEventsWidget extends StatelessWidget {
 }
 
 class EventPlannerWalletTab extends StatelessWidget {
-  EventPlannerWalletTab({super.key});
+  const EventPlannerWalletTab({super.key});
 
   final List<Map<String, dynamic>> _transactionHistory = const [
     {'title': 'Payment: "Sunset Picnic"', 'amount': 250.00, 'date': 'Nov 26, 2025'},
@@ -819,7 +819,7 @@ class _EventPlannerBookingsTabState extends State<EventPlannerBookingsTab> {
   bool _isLoadingMore = false;
   String _sortBy = 'Date';
 
-  Map<String, dynamic> _activeFilters = {
+  final Map<String, dynamic> _activeFilters = {
     'status': <String>[],
     'eventType': <String>[],
     'dateRange': null,

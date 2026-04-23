@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'place.dart';
 
 class QuivvoMapScreen extends StatefulWidget {
-  const QuivvoMapScreen({Key? key}) : super(key: key);
+  const QuivvoMapScreen({super.key});
 
   @override
   State<QuivvoMapScreen> createState() => _QuivvoMapScreenState();
@@ -15,7 +15,7 @@ class QuivvoMapScreen extends StatefulWidget {
 class _QuivvoMapScreenState extends State<QuivvoMapScreen> {
   GoogleMapController? _mapController;
   LatLng _currentLocation = const LatLng(37.4219999, -122.0840575); // fallback
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
   bool _loadingLocation = true;
   Place? _selectedPlace;
 
@@ -214,7 +214,7 @@ class _QuivvoMapScreenState extends State<QuivvoMapScreen> {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
                       blurRadius: 8,

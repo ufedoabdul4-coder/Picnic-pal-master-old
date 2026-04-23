@@ -100,7 +100,7 @@ class _LoginSettingsScreenState extends State<LoginSettingsScreen> {
         title: Text(title, style: TextStyle(color: theme.colorScheme.onSecondary)),
         value: value,
         onChanged: onChanged,
-        activeColor: theme.colorScheme.primary,
+        activeThumbColor: theme.colorScheme.primary,
       ),
     );
   }

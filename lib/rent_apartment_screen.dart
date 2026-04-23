@@ -178,7 +178,7 @@ class _RentApartmentScreenState extends State<RentApartmentScreen> {
         stream: _apartmentsStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Unable to load apartments. Please check your internet connection.'));
+            return const Center(child: Text('Unable to load apartments. Please check your internet connection.'));
           }
           if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
@@ -233,7 +233,7 @@ class _RentApartmentScreenState extends State<RentApartmentScreen> {
 
   Widget _buildDropdown(ThemeData theme, String label, List<String> items, String? currentValue, ValueChanged<String?> onChanged) {
     return DropdownButtonFormField<String>(
-      value: currentValue,
+      initialValue: currentValue,
       isExpanded: true,
       hint: Text(label, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
       items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
